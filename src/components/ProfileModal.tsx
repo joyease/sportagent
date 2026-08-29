@@ -1,5 +1,6 @@
 import React from 'react';
-import { User, Mail, Shield, Smartphone, RefreshCw, X, LogOut, CheckCircle2 } from 'lucide-react';
+import { User, Mail, Shield, Smartphone, RefreshCw, X, LogOut, CheckCircle2, Tag } from 'lucide-react';
+import { getUserNickname } from '../utils/user';
 
 interface ProfileModalProps {
   userEmail: string;
@@ -18,6 +19,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
+  const nickname = getUserNickname(userEmail);
+
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl space-y-4 border border-lime-200 relative overflow-hidden">
@@ -27,10 +30,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#5ea31b] to-lime-400 flex items-center justify-center text-white font-black text-sm shadow">
-              {userEmail.charAt(0).toUpperCase()}
+              {nickname.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h3 className="font-extrabold text-sm text-slate-900">個人帳號管理</h3>
+              <h3 className="font-extrabold text-sm text-slate-900">{nickname} 的帳號管理</h3>
               <p className="text-[10px] text-slate-400">mySports 運動好夥伴系統</p>
             </div>
           </div>
@@ -45,6 +48,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         {/* Account Details */}
         <div className="space-y-2.5 text-xs">
           <div className="p-3 bg-slate-50 rounded-2xl space-y-1.5 border border-slate-100">
+            <div className="flex items-center justify-between text-slate-500 text-[11px]">
+              <span className="flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5 text-lime-600" /> 使用者暱稱
+              </span>
+              <span className="font-bold text-slate-800">{nickname}</span>
+            </div>
+
             <div className="flex items-center justify-between text-slate-500 text-[11px]">
               <span className="flex items-center gap-1.5">
                 <Mail className="w-3.5 h-3.5 text-lime-600" /> 登入帳號

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlan, UserRecord } from '../types';
 import { calculatePlanProgress } from '../utils/planCalc';
+import { getUserNickname } from '../utils/user';
 import {
   Trophy,
   Target,
@@ -25,7 +26,6 @@ interface ChallengeResultsPageProps {
   onNavigateToProfile?: () => void;
 }
 
-const STORAGE_KEY_NICKNAME = 'sportpal_user_nickname_v1';
 const STORAGE_KEY_UID = 'sportpal_user_uid_v1';
 
 export const ChallengeResultsPage: React.FC<ChallengeResultsPageProps> = ({
@@ -35,9 +35,15 @@ export const ChallengeResultsPage: React.FC<ChallengeResultsPageProps> = ({
   onNavigateToCompletedPlans,
   onNavigateToProfile,
 }) => {
-  const [nickname] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_KEY_NICKNAME) || '健跑達人 Hermann';
+  const displayEmail = userEmail || 'hermann@trip.com';
+
+  const [nickname, setNickname] = useState<string>(() => {
+    return getUserNickname(displayEmail);
   });
+
+  useEffect(() => {
+    setNickname(getUserNickname(displayEmail));
+  }, [displayEmail]);
 
   const [uid] = useState<string>(() => {
     let savedUid = localStorage.getItem(STORAGE_KEY_UID);
@@ -46,8 +52,6 @@ export const ChallengeResultsPage: React.FC<ChallengeResultsPageProps> = ({
     }
     return savedUid.replace(/^UID-/, '');
   });
-
-  const displayEmail = userEmail || 'hermanntalk@gmail.com';
 
   const activePlans = plans.filter((p) => p.status === 'active');
 

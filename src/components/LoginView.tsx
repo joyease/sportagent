@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Activity, Lock, Mail, ArrowRight, UserPlus, LogIn } from 'lucide-react';
+import { Activity, Lock, Mail, ArrowRight } from 'lucide-react';
 import {
   auth,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
 } from '../firebase';
 
 interface LoginViewProps {
@@ -11,11 +10,9 @@ interface LoginViewProps {
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('hermann@trip.com');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,22 +24,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
 
     setIsLoading(true);
     setErrorMsg('');
-    setSuccessMsg('');
 
     try {
-      if (mode === 'signin') {
-        const userCred = await signInWithEmailAndPassword(auth, email.trim(), password);
-        if (userCred.user?.email) {
-          onLoginSuccess(userCred.user.email);
-        }
-      } else {
-        const userCred = await createUserWithEmailAndPassword(auth, email.trim(), password);
-        if (userCred.user?.email) {
-          setSuccessMsg('帳號註冊成功！正在進入系統...');
-          setTimeout(() => {
-            onLoginSuccess(userCred.user.email!);
-          }, 800);
-        }
+      const userCred = await signInWithEmailAndPassword(auth, email.trim(), password);
+      if (userCred.user?.email) {
+        onLoginSuccess(userCred.user.email);
       }
     } catch (err: any) {
       console.warn('Firebase Auth error:', err);
@@ -51,11 +37,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         err.code === 'auth/invalid-credential' ||
         err.code === 'auth/user-not-found'
       ) {
-        setErrorMsg('帳號或密碼錯誤。若尚未建立此帳號，請切換至「註冊帳號」分頁建立。');
-      } else if (err.code === 'auth/email-already-in-use') {
-        setErrorMsg('此 Email 已被註冊，請切換至「登入」分頁輸入密碼登入。');
-      } else if (err.code === 'auth/weak-password') {
-        setErrorMsg('密碼強度不足，長度至少需 6 個字元以上。');
+        setErrorMsg('帳號或密碼錯誤，請確認後重新輸入');
       } else if (err.code === 'auth/invalid-email') {
         setErrorMsg('Email 格式不正確');
       } else if (err.code === 'auth/too-many-requests') {
@@ -89,53 +71,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           </p>
         </div>
 
-        {/* Mode Toggle Tabs */}
-        <div className="flex border-b border-slate-100 bg-slate-50/70 p-1.5 gap-1">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('signin');
-              setErrorMsg('');
-              setSuccessMsg('');
-            }}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition ${
-              mode === 'signin'
-                ? 'bg-white text-slate-800 shadow-sm border border-slate-200/80'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <LogIn className="w-3.5 h-3.5" />
-            已有帳號登入
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('signup');
-              setErrorMsg('');
-              setSuccessMsg('');
-            }}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition ${
-              mode === 'signup'
-                ? 'bg-white text-slate-800 shadow-sm border border-slate-200/80'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            註冊新帳號
-          </button>
-        </div>
-
         {/* Form Body */}
         <div className="p-6 space-y-5">
           {errorMsg && (
             <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200 leading-relaxed">
               {errorMsg}
-            </div>
-          )}
-
-          {successMsg && (
-            <div className="p-3 bg-emerald-50 text-emerald-700 text-xs rounded-xl border border-emerald-200 leading-relaxed">
-              {successMsg}
             </div>
           )}
 
@@ -165,7 +105,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder={mode === 'signup' ? '請設定 6 位數以上密碼' : '請輸入密碼'}
+                placeholder="請輸入密碼"
                 className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition"
               />
             </div>
@@ -178,11 +118,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
               {isLoading ? (
                 <span className="inline-flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  {mode === 'signin' ? 'Firebase 認證中...' : '帳號建立中...'}
+                  Firebase 認證中...
                 </span>
               ) : (
                 <>
-                  {mode === 'signin' ? '登入系統' : '立即註冊並進入'}
+                  登入系統
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

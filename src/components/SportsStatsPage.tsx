@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { UserRecord } from '../types';
+import { getUserNickname } from '../utils/user';
 import {
   BarChart3,
   User,
@@ -21,7 +22,6 @@ interface SportsStatsPageProps {
   onNavigateToProfile?: () => void;
 }
 
-const STORAGE_KEY_NICKNAME = 'sportpal_user_nickname_v1';
 const STORAGE_KEY_UID = 'sportpal_user_uid_v1';
 
 const MONTH_LABELS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
@@ -31,10 +31,16 @@ export const SportsStatsPage: React.FC<SportsStatsPageProps> = ({
   userEmail,
   onNavigateToProfile,
 }) => {
+  const displayEmail = userEmail || 'hermann@trip.com';
+
   // User info
-  const [nickname] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_KEY_NICKNAME) || '健跑達人 Hermann';
+  const [nickname, setNickname] = useState<string>(() => {
+    return getUserNickname(displayEmail);
   });
+
+  useEffect(() => {
+    setNickname(getUserNickname(displayEmail));
+  }, [displayEmail]);
 
   const [uid] = useState<string>(() => {
     let savedUid = localStorage.getItem(STORAGE_KEY_UID);
@@ -43,8 +49,6 @@ export const SportsStatsPage: React.FC<SportsStatsPageProps> = ({
     }
     return savedUid.replace(/^UID-/, '');
   });
-
-  const displayEmail = userEmail || 'hermanntalk@gmail.com';
 
   // Selected year state
   const [selectedYear, setSelectedYear] = useState<number>(2026);
