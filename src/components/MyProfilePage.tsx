@@ -28,7 +28,7 @@ interface MyProfilePageProps {
   onForceSync?: () => void;
 }
 
-const STORAGE_KEY_CHECKINS = 'sportpal_checkin_posts_v1';
+const STORAGE_KEY_CHECKINS = 'sportpal_checkin_posts_v2';
 const STORAGE_KEY_UID = 'sportpal_user_uid_v1';
 
 const INITIAL_SAMPLE_POSTS: CheckInPost[] = [
@@ -39,22 +39,6 @@ const INITIAL_SAMPLE_POSTS: CheckInPost[] = [
     email: 'hermann@trip.com',
     message: '大安森林公園晨跑 8K 達成！微風很舒服，配速推進到 5 分 15 秒，心情超棒！',
     createdAt: '2026-08-29 07:30:15',
-  },
-  {
-    id: 'post-2',
-    uid: '77215',
-    nickname: 'Tom',
-    email: 'trial@trip.com',
-    message: '河濱自行車道騎乘 25km，均速 24km/h，補給一瓶電解質水，順利完成週末課表！',
-    createdAt: '2026-08-28 18:45:00',
-  },
-  {
-    id: 'post-3',
-    uid: '66148',
-    nickname: 'Annie',
-    email: 'abc@trip.com',
-    message: '體能訓練日：核心肌群 + 腿部重訓 60 分鐘，燃燒 450 卡路里，體態持續精進！',
-    createdAt: '2026-08-27 20:10:32',
   },
 ];
 
