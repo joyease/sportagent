@@ -3,58 +3,36 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default deny all
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // Helper functions
+    // 驗證是否已通過 Firebase 認證登入
     function isSignedIn() {
       return request.auth != null;
     }
 
+    // 驗證是否為該資料的擁有人 (比對 Auth UID)
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isAllowedUser() {
-      return isSignedIn() && (
-        request.auth.token.email == 'hermanntalk@gmail.com' ||
-        request.auth.token.email == 'trial@trip.com' ||
-        request.auth.token.email != null
-      );
-    }
-
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    // User Profile Document
+    // 1. 使用者個人文件及其子集合
     match /users/{userId} {
-      allow read: if isSignedIn() && (isOwner(userId) || request.auth.token.email == 'hermanntalk@gmail.com');
-      allow create, update: if isSignedIn() && isOwner(userId) && isValidId(userId);
-      allow delete: if false;
+      // 只要是經 Firebase 認證的用戶本人即可讀寫自己的資料
+      allow read, write: if isOwner(userId);
 
-      // User Sport Records (monthly)
+      // 每月運動紀錄子集合
       match /records/{monthId} {
-        allow read: if isSignedIn() && (isOwner(userId) || request.auth.token.email == 'hermanntalk@gmail.com');
-        allow create, update: if isSignedIn() && isOwner(userId);
-        allow delete: if isSignedIn() && isOwner(userId);
+        allow read, write: if isOwner(userId);
       }
 
-      // User Fitness Plans
+      // 訓練計畫子集合
       match /plans/{planId} {
-        allow read: if isSignedIn() && (isOwner(userId) || request.auth.token.email == 'hermanntalk@gmail.com');
-        allow create, update: if isSignedIn() && isOwner(userId) && isValidId(planId);
-        allow delete: if isSignedIn() && isOwner(userId);
+        allow read, write: if isOwner(userId);
       }
     }
 
-    // Public community messages / feedback
+    // 2. 「我的」頁面 - 社群打卡與即時留言板
     match /community_messages/{messageId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // 經 Firebase 認證的用戶皆可讀取與發布留言
+      allow read, write: if isSignedIn();
     }
   }
 }

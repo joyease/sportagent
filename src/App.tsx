@@ -71,6 +71,59 @@ export default function App() {
     return INITIAL_PLANS;
   });
 
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
+  const [syncErrorMsg, setSyncErrorMsg] = useState<string | null>(null);
+
+  // Sync entire dataset to Firestore helper
+  const syncAllDataToFirestore = async (uid: string, email: string) => {
+    setSyncStatus('syncing');
+    setSyncErrorMsg(null);
+    try {
+      // 1. Write user profile
+      await setDoc(
+        doc(db, 'users', uid),
+        {
+          email,
+          uid,
+          lastSyncAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+
+      // 2. Write all records
+      const currentRecords: Record<string, UserRecord> = records;
+      for (const [m, rec] of Object.entries(currentRecords)) {
+        const r = rec as UserRecord;
+        if (r) {
+          await setDoc(doc(db, 'users', uid, 'records', m), {
+            month: r.month,
+            distance: r.distance,
+            minutes: r.minutes,
+            calories: r.calories,
+            weight: r.weight,
+            notes: r.notes || '',
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
+
+      // 3. Write all plans
+      const currentPlans = plans;
+      for (const pl of currentPlans) {
+        if (pl) {
+          await setDoc(doc(db, 'users', uid, 'plans', pl.id), pl);
+        }
+      }
+
+      setSyncStatus('synced');
+      console.log('✅ Firestore sync completed successfully');
+    } catch (err: any) {
+      console.error('❌ Firestore sync error:', err);
+      setSyncStatus('error');
+      setSyncErrorMsg(err.message || String(err));
+    }
+  };
+
   // Listen to Firebase Auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -79,8 +132,23 @@ export default function App() {
         setUserId(user.uid);
         localStorage.setItem(STORAGE_KEYS.USER, user.email);
 
-        // Fetch records from Firestore if available
+        // Fetch records from Firestore or auto-seed initial data
         try {
+          setSyncStatus('syncing');
+          setSyncErrorMsg(null);
+
+          // 1. Ensure user profile doc exists
+          await setDoc(
+            doc(db, 'users', user.uid),
+            {
+              email: user.email,
+              uid: user.uid,
+              lastLoginAt: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+
+          // 2. Check / fetch records
           const recordsSnap = await getDocs(collection(db, 'users', user.uid, 'records'));
           if (!recordsSnap.empty) {
             const fetchedRecords: Record<string, UserRecord> = {};
@@ -88,8 +156,17 @@ export default function App() {
               fetchedRecords[docSnap.id] = docSnap.data() as UserRecord;
             });
             setRecords(fetchedRecords);
+          } else {
+            // First time login - seed initial records to Firestore
+            for (const [m, rec] of Object.entries(INITIAL_RECORDS)) {
+              await setDoc(doc(db, 'users', user.uid, 'records', m), {
+                ...rec,
+                updatedAt: new Date().toISOString(),
+              });
+            }
           }
 
+          // 3. Check / fetch plans
           const plansSnap = await getDocs(collection(db, 'users', user.uid, 'plans'));
           if (!plansSnap.empty) {
             const fetchedPlans: UserPlan[] = [];
@@ -97,10 +174,21 @@ export default function App() {
               fetchedPlans.push(docSnap.data() as UserPlan);
             });
             setPlans(fetchedPlans);
+          } else {
+            // Seed initial plans to Firestore
+            for (const pl of INITIAL_PLANS) {
+              await setDoc(doc(db, 'users', user.uid, 'plans', pl.id), pl);
+            }
           }
-        } catch (err) {
-          console.warn('Firestore fetch notice (using local storage fallback):', err);
+
+          setSyncStatus('synced');
+        } catch (err: any) {
+          console.warn('Firestore initial sync notice:', err);
+          setSyncStatus('error');
+          setSyncErrorMsg(err.message || String(err));
         }
+      } else {
+        setSyncStatus('idle');
       }
     });
 
@@ -144,12 +232,17 @@ export default function App() {
     // If authenticated to Firebase, persist to Firestore
     if (auth.currentUser) {
       try {
+        setSyncStatus('syncing');
         await setDoc(doc(db, 'users', auth.currentUser.uid, 'records', newRecord.month), {
           ...newRecord,
           updatedAt: new Date().toISOString(),
         });
-      } catch (err) {
-        console.warn('Firestore write notice:', err);
+        setSyncStatus('synced');
+        setSyncErrorMsg(null);
+      } catch (err: any) {
+        console.error('Firestore write record error:', err);
+        setSyncStatus('error');
+        setSyncErrorMsg(err.message || String(err));
       }
     }
   };
@@ -165,9 +258,14 @@ export default function App() {
 
     if (auth.currentUser) {
       try {
+        setSyncStatus('syncing');
         await setDoc(doc(db, 'users', auth.currentUser.uid, 'plans', newPlan.id), newPlan);
-      } catch (err) {
-        console.warn('Firestore write plan notice:', err);
+        setSyncStatus('synced');
+        setSyncErrorMsg(null);
+      } catch (err: any) {
+        console.error('Firestore write plan error:', err);
+        setSyncStatus('error');
+        setSyncErrorMsg(err.message || String(err));
       }
     }
   };
@@ -177,9 +275,14 @@ export default function App() {
 
     if (auth.currentUser) {
       try {
+        setSyncStatus('syncing');
         await setDoc(doc(db, 'users', auth.currentUser.uid, 'plans', updatedPlan.id), updatedPlan);
-      } catch (err) {
-        console.warn('Firestore update plan notice:', err);
+        setSyncStatus('synced');
+        setSyncErrorMsg(null);
+      } catch (err: any) {
+        console.error('Firestore update plan error:', err);
+        setSyncStatus('error');
+        setSyncErrorMsg(err.message || String(err));
       }
     }
   };
@@ -269,7 +372,16 @@ export default function App() {
           )}
 
           {currentTab === 'badges' && (
-            <MyProfilePage userEmail={userEmail} />
+            <MyProfilePage
+              userEmail={userEmail}
+              syncStatus={syncStatus}
+              syncErrorMsg={syncErrorMsg}
+              onForceSync={() => {
+                if (auth.currentUser) {
+                  syncAllDataToFirestore(auth.currentUser.uid, auth.currentUser.email || '');
+                }
+              }}
+            />
           )}
 
           {currentTab === 'stats' && (

@@ -92,9 +92,9 @@ export interface CheckInPost {
   nickname: string;
   email: string;
   message: string;
-  gps: {
-    lat: number;
-    lng: number;
+  gps?: {
+    lat?: number;
+    lng?: number;
     accuracy?: number;
     locationName?: string;
   };
