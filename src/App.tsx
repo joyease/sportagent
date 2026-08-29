@@ -16,6 +16,16 @@ import { InteractivePage } from './components/InteractivePage';
 import { EventsPage } from './components/EventsPage';
 import { ProfileModal } from './components/ProfileModal';
 import { Smartphone, Monitor, ChevronLeft, ArrowLeft } from 'lucide-react';
+import {
+  auth,
+  db,
+  signOut,
+  onAuthStateChanged,
+  doc,
+  setDoc,
+  getDocs,
+  collection,
+} from './firebase';
 
 const STORAGE_KEYS = {
   USER: 'sportpal_user_email',
@@ -26,8 +36,9 @@ const STORAGE_KEYS = {
 export default function App() {
   // Auth state
   const [userEmail, setUserEmail] = useState<string | null>(() => {
-    return localStorage.getItem(STORAGE_KEYS.USER) || 'trial@trip.com';
+    return localStorage.getItem(STORAGE_KEYS.USER) || null;
   });
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Current Active Tab
   const [currentTab, setCurrentTab] = useState<TabType>('home');
@@ -60,6 +71,42 @@ export default function App() {
     return INITIAL_PLANS;
   });
 
+  // Listen to Firebase Auth state
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user && user.email) {
+        setUserEmail(user.email);
+        setUserId(user.uid);
+        localStorage.setItem(STORAGE_KEYS.USER, user.email);
+
+        // Fetch records from Firestore if available
+        try {
+          const recordsSnap = await getDocs(collection(db, 'users', user.uid, 'records'));
+          if (!recordsSnap.empty) {
+            const fetchedRecords: Record<string, UserRecord> = {};
+            recordsSnap.forEach((docSnap) => {
+              fetchedRecords[docSnap.id] = docSnap.data() as UserRecord;
+            });
+            setRecords(fetchedRecords);
+          }
+
+          const plansSnap = await getDocs(collection(db, 'users', user.uid, 'plans'));
+          if (!plansSnap.empty) {
+            const fetchedPlans: UserPlan[] = [];
+            plansSnap.forEach((docSnap) => {
+              fetchedPlans.push(docSnap.data() as UserPlan);
+            });
+            setPlans(fetchedPlans);
+          }
+        } catch (err) {
+          console.warn('Firestore fetch notice (using local storage fallback):', err);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   // Sync to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.RECORDS, JSON.stringify(records));
@@ -76,31 +123,65 @@ export default function App() {
     setCurrentTab('home');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (e) {
+      // ignore
+    }
     setUserEmail(null);
+    setUserId(null);
     localStorage.removeItem(STORAGE_KEYS.USER);
   };
 
   // Record actions (setDoc overwrite by month)
-  const handleSaveRecord = (newRecord: UserRecord) => {
+  const handleSaveRecord = async (newRecord: UserRecord) => {
     setRecords((prev) => ({
       ...prev,
       [newRecord.month]: newRecord,
     }));
+
+    // If authenticated to Firebase, persist to Firestore
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'users', auth.currentUser.uid, 'records', newRecord.month), {
+          ...newRecord,
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.warn('Firestore write notice:', err);
+      }
+    }
   };
 
   // Plan actions
-  const handleAddPlan = (newPlanData: Omit<UserPlan, 'id' | 'createdAt'>) => {
+  const handleAddPlan = async (newPlanData: Omit<UserPlan, 'id' | 'createdAt'>) => {
     const newPlan: UserPlan = {
       ...newPlanData,
       id: `plan-${Date.now()}`,
       createdAt: new Date().toISOString(),
     };
     setPlans((prev) => [newPlan, ...prev]);
+
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'users', auth.currentUser.uid, 'plans', newPlan.id), newPlan);
+      } catch (err) {
+        console.warn('Firestore write plan notice:', err);
+      }
+    }
   };
 
-  const handleUpdatePlan = (updatedPlan: UserPlan) => {
+  const handleUpdatePlan = async (updatedPlan: UserPlan) => {
     setPlans((prev) => prev.map((p) => (p.id === updatedPlan.id ? updatedPlan : p)));
+
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'users', auth.currentUser.uid, 'plans', updatedPlan.id), updatedPlan);
+      } catch (err) {
+        console.warn('Firestore update plan notice:', err);
+      }
+    }
   };
 
   const handleDeletePlan = (id: string) => {
@@ -128,7 +209,7 @@ export default function App() {
       <aside className="hidden lg:flex items-center justify-between w-full max-w-5xl px-6 py-2 text-xs text-slate-400 border-b border-slate-800">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-lime-500" />
-          <span className="font-semibold text-slate-300">Sportpal • mySports 手機端預覽模式</span>
+          <span className="font-semibold text-slate-300">SportAgent • 手機端預覽模式</span>
         </div>
 
         <div className="flex items-center gap-2">

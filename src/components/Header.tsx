@@ -11,18 +11,15 @@ export const Header: React.FC<HeaderProps> = ({ userEmail, onLogout, onProfileCl
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-lime-100 shadow-sm">
       <div className="px-4 py-2.5 flex items-center justify-between">
-        {/* Logo matching mySports identity */}
+        {/* Logo matching SportAgent identity */}
         <div className="flex items-center gap-2 select-none">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#5ea31b] via-[#70b828] to-lime-400 flex items-center justify-center text-white shadow-md shadow-lime-500/20">
             <Activity className="w-5 h-5 animate-pulse" />
           </div>
           <div className="flex flex-col">
             <div className="flex items-baseline font-black tracking-tight leading-none text-xl">
-              <span className="text-slate-800 italic">my</span>
-              <span className="text-[#ff6d00] ml-0.5 tracking-wider">Sports</span>
-              <span className="ml-1 text-slate-800 font-black">
-                Pal
-              </span>
+              <span className="text-[#5ea31b] font-black">Sport</span>
+              <span className="text-[#ff6d00] ml-0.5 tracking-wider font-black">Agent</span>
             </div>
             <span className="text-[10px] text-slate-400 font-medium">運動與健康的好夥伴</span>
           </div>

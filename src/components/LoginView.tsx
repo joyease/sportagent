@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
-import { Activity, ShieldCheck, Zap, Lock, Mail, ArrowRight } from 'lucide-react';
+import { Activity, Lock, Mail, ArrowRight } from 'lucide-react';
+import {
+  auth,
+  signInWithEmailAndPassword,
+} from '../firebase';
 
 interface LoginViewProps {
   onLoginSuccess: (email: string) => void;
@@ -7,32 +11,43 @@ interface LoginViewProps {
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('trial@trip.com');
-  const [password, setPassword] = useState('123456');
+  const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim() || !password) {
+      setErrorMsg('請輸入帳號與密碼');
+      return;
+    }
+
     setIsLoading(true);
     setErrorMsg('');
 
-    setTimeout(() => {
-      if (email.trim() && password.length >= 6) {
-        onLoginSuccess(email.trim());
-      } else {
-        setErrorMsg('請確認帳號與密碼長度（密碼需至少 6 碼）');
-        setIsLoading(false);
+    try {
+      const userCred = await signInWithEmailAndPassword(auth, email.trim(), password);
+      if (userCred.user?.email) {
+        onLoginSuccess(userCred.user.email);
       }
-    }, 400);
-  };
-
-  const handleQuickDemo = () => {
-    setEmail('trial@trip.com');
-    setPassword('123456');
-    setIsLoading(true);
-    setTimeout(() => {
-      onLoginSuccess('trial@trip.com');
-    }, 300);
+    } catch (err: any) {
+      console.warn('Firebase Auth login error:', err);
+      if (
+        err.code === 'auth/wrong-password' ||
+        err.code === 'auth/invalid-credential' ||
+        err.code === 'auth/user-not-found'
+      ) {
+        setErrorMsg('帳號或密碼錯誤，請確認後重新輸入');
+      } else if (err.code === 'auth/invalid-email') {
+        setErrorMsg('Email 格式不正確');
+      } else if (err.code === 'auth/too-many-requests') {
+        setErrorMsg('嘗試登入次數過多，請稍後再試');
+      } else {
+        setErrorMsg(err.message || '登入失敗，請確認網路連線');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -48,9 +63,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           </div>
 
           <div className="flex items-baseline justify-center font-black tracking-tight text-3xl mb-1 drop-shadow">
-            <span className="text-white italic">my</span>
-            <span className="text-amber-200 ml-1 tracking-wider">SPORTS</span>
-            <span className="text-white text-xl ml-1 font-semibold">/ Sportpal</span>
+            <span className="text-white font-black">Sport</span>
+            <span className="text-amber-200 ml-1 tracking-wider font-black">Agent</span>
           </div>
           <p className="text-xs text-lime-100 font-medium tracking-wide">
             您的運動與體態好夥伴 ｜ 隨時掌握天氣、徽章與訓練計畫
@@ -59,15 +73,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
 
         {/* Form Body */}
         <div className="p-6 space-y-5">
-          <div className="flex items-center gap-2 p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-xs">
-            <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>
-              已預設試用帳號：<strong className="font-semibold text-amber-900">trial@trip.com</strong> / 密碼：<strong className="font-semibold text-amber-900">123456</strong>
-            </span>
-          </div>
-
           {errorMsg && (
-            <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200">
+            <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200 leading-relaxed">
               {errorMsg}
             </div>
           )}
@@ -83,7 +90,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="例如: trial@trip.com"
+                placeholder="請輸入帳號 Email"
                 className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-lime-500 focus:border-lime-500 transition"
               />
             </div>
@@ -98,7 +105,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="請輸入密碼 (預設: 123456)"
+                placeholder="請輸入密碼"
                 className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition"
               />
             </div>
@@ -106,12 +113,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-[#5ea31b] to-[#70b828] hover:from-[#528f17] hover:to-[#5ea31b] text-white font-bold text-sm shadow-md shadow-lime-600/30 flex items-center justify-center gap-2 transition active:scale-[0.99] disabled:opacity-70"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-[#5ea31b] to-[#70b828] hover:from-[#528f17] hover:to-[#5ea31b] text-white font-bold text-sm shadow-md shadow-lime-600/30 flex items-center justify-center gap-2 transition active:scale-[0.99] disabled:opacity-70 cursor-pointer"
             >
               {isLoading ? (
                 <span className="inline-flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  驗證中...
+                  Firebase 認證中...
                 </span>
               ) : (
                 <>
@@ -121,25 +128,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
               )}
             </button>
           </form>
-
-          <div className="relative flex items-center justify-center my-2">
-            <div className="border-t border-slate-200 w-full" />
-            <span className="bg-white px-3 text-[11px] text-slate-400 font-medium">或快速體驗</span>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleQuickDemo}
-            className="w-full py-2.5 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-200 text-[#ea580c] font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-[0.99]"
-          >
-            <Zap className="w-4 h-4 text-orange-500 fill-orange-500" />
-            一鍵登入試用帳號 (trial@trip.com)
-          </button>
         </div>
 
         {/* Footer info */}
         <div className="bg-slate-50 px-6 py-3 border-t border-slate-100 text-center text-[11px] text-slate-400">
-          mySports 行動運動管理系統 • 支持即時天氣、圖表與徽章
+          SportAgent 行動運動管理系統 • 支持 Firebase 認證、即時天氣與徽章
         </div>
       </div>
     </div>

@@ -1,0 +1,63 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile document",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 128 },
+        "nickname": { "type": "string", "maxLength": 64 },
+        "uid": { "type": "string", "maxLength": 128 },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["email"]
+    },
+    "UserRecord": {
+      "title": "UserRecord",
+      "description": "Monthly sport and body weight record",
+      "type": "object",
+      "properties": {
+        "month": { "type": "string", "maxLength": 10 },
+        "distance": { "type": "number" },
+        "minutes": { "type": "number" },
+        "calories": { "type": "number" },
+        "weight": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 500 },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["month"]
+    },
+    "UserPlan": {
+      "title": "UserPlan",
+      "description": "User sport training or weight challenge goal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 128 },
+        "target": { "type": "number" },
+        "current": { "type": "number" },
+        "unit": { "type": "string", "maxLength": 32 },
+        "startDate": { "type": "string", "maxLength": 32 },
+        "endDate": { "type": "string", "maxLength": 32 },
+        "status": { "type": "string", "enum": ["active", "completed", "cancelled"] },
+        "challengeTypes": { "type": "array" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "target", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Individual user settings and profiles"
+    },
+    "/users/{userId}/records/{monthId}": {
+      "schema": "UserRecord",
+      "description": "Monthly sports statistics per user"
+    },
+    "/users/{userId}/plans/{planId}": {
+      "schema": "UserPlan",
+      "description": "User sport and fitness goals"
+    }
+  }
+}
