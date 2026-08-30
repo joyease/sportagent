@@ -27,6 +27,11 @@ service cloud.firestore {
       match /plans/{planId} {
         allow read, write: if isOwner(userId);
       }
+
+      // 運動特徵調查子集合
+      match /survey_records/{periodId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // 2. 「我的」頁面 - 社群打卡與即時留言板

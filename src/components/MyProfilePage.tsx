@@ -2,24 +2,17 @@ import React, { useState, useEffect } from 'react';
 import {
   User,
   Mail,
-  MapPin,
-  Clock,
   Send,
   MessageSquare,
   Sparkles,
   CheckCircle2,
-  Navigation,
-  ShieldCheck,
-  Tag,
-  Share2,
-  Database,
-  RefreshCw,
-  AlertCircle,
+  Clock,
+  ChevronDown,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { CheckInPost } from '../types';
 import { auth, db, doc, setDoc, collection, onSnapshot } from '../firebase';
-import { getUserNickname, saveUserNickname } from '../utils/user';
+import { getUserNickname } from '../utils/user';
 
 interface MyProfilePageProps {
   userEmail: string | null;
@@ -28,10 +21,10 @@ interface MyProfilePageProps {
   onForceSync?: () => void;
 }
 
-const STORAGE_KEY_CHECKINS = 'sportpal_checkin_posts_v2';
+const STORAGE_KEY_CHECKINS = 'sportpal_checkin_posts_v3';
 const STORAGE_KEY_UID = 'sportpal_user_uid_v1';
 
-const INITIAL_SAMPLE_POSTS: CheckInPost[] = [
+const INITIAL_COMMUNITY_POSTS: CheckInPost[] = [
   {
     id: 'post-1',
     uid: '88392',
@@ -40,14 +33,161 @@ const INITIAL_SAMPLE_POSTS: CheckInPost[] = [
     message: '大安森林公園晨跑 8K 達成！微風很舒服，配速推進到 5 分 15 秒，心情超棒！',
     createdAt: '2026-08-29 07:30:15',
   },
+  {
+    id: 'post-2',
+    uid: '74129',
+    nickname: 'Tom',
+    email: 'tom@trip.com',
+    message: '風櫃嘴單車爬坡攻頂！今天爬升 850m，燃燒 1200 卡，下山豆花太好吃了！',
+    createdAt: '2026-08-28 16:45:20',
+  },
+  {
+    id: 'post-3',
+    uid: '63214',
+    nickname: 'Annie',
+    email: 'annie@trip.com',
+    message: '象山夜跑階梯訓練，夜景超美！每週固定維持 3 次運動，體重成功降了 2kg。',
+    createdAt: '2026-08-28 20:10:00',
+  },
+  {
+    id: 'post-4',
+    uid: '91823',
+    nickname: 'David',
+    email: 'david@trip.com',
+    message: '河濱 15km 漸速跑完賽，心率穩定在 145，下半年半馬賽事準備好了！',
+    createdAt: '2026-08-27 18:20:30',
+  },
+  {
+    id: 'post-5',
+    uid: '52910',
+    nickname: 'Kelly',
+    email: 'kelly@trip.com',
+    message: '早起瑜伽 45 分鐘 + 核心肌群深蹲，感覺精神百倍，準備迎接挑戰！',
+    createdAt: '2026-08-27 06:50:12',
+  },
+  {
+    id: 'post-6',
+    uid: '88392',
+    nickname: 'Hermann',
+    email: 'hermann@trip.com',
+    message: '週末合歡山北峰單攻！高山空氣清新，心肺訓練強度很夠，視野壯闊！',
+    createdAt: '2026-08-26 14:15:00',
+  },
+  {
+    id: 'post-7',
+    uid: '47182',
+    nickname: 'Mark',
+    email: 'mark@trip.com',
+    message: '重訓深蹲突破 100kg！配合跑步交叉訓練，膝蓋穩定度明顯提升很多。',
+    createdAt: '2026-08-25 19:30:40',
+  },
+  {
+    id: 'post-8',
+    uid: '74129',
+    nickname: 'Tom',
+    email: 'tom@trip.com',
+    message: '台北馬拉松倒數訓練中，今天 12k 配速跑順利完成，大家一起加油！',
+    createdAt: '2026-08-25 08:00:10',
+  },
+  {
+    id: 'post-9',
+    uid: '38192',
+    nickname: 'Sophia',
+    email: 'sophia@trip.com',
+    message: '早安健走 6 公里，累積步數破萬！呼吸清晨涼爽空氣真是一天最棒的開始。',
+    createdAt: '2026-08-24 07:10:25',
+  },
+  {
+    id: 'post-10',
+    uid: '63214',
+    nickname: 'Annie',
+    email: 'annie@trip.com',
+    message: '運動後補充無糖高纖豆漿與茶葉蛋，肌肉修復滿分，明天繼續保持！',
+    createdAt: '2026-08-23 21:05:15',
+  },
+  {
+    id: 'post-11',
+    uid: '88392',
+    nickname: 'Hermann',
+    email: 'hermann@trip.com',
+    message: '田中馬拉松報名成功！今年目標突破 1 小時 55 分完賽，為自己加油！',
+    createdAt: '2026-08-22 12:00:00',
+  },
+  {
+    id: 'post-12',
+    uid: '91823',
+    nickname: 'David',
+    email: 'david@trip.com',
+    message: '週末單車北海岸 60km 巡航，雖然逆風但大家一起輪車很有成就感。',
+    createdAt: '2026-08-21 16:30:00',
+  },
+  {
+    id: 'post-13',
+    uid: '52910',
+    nickname: 'Kelly',
+    email: 'kelly@trip.com',
+    message: '間歇跑訓練 800m x 5 趟，雖然喘但突破速度極限的感覺太痛快了！',
+    createdAt: '2026-08-20 19:40:10',
+  },
+  {
+    id: 'post-14',
+    uid: '47182',
+    nickname: 'Mark',
+    email: 'mark@trip.com',
+    message: '連續打卡運動第 30 天達成！習慣養成後一天沒動渾身不對勁。',
+    createdAt: '2026-08-19 22:15:30',
+  },
+  {
+    id: 'post-15',
+    uid: '38192',
+    nickname: 'Sophia',
+    email: 'sophia@trip.com',
+    message: '陽明山東西大縱走初體驗，耗時 7 小時完賽，雙腿痠痛但心靈充實！',
+    createdAt: '2026-08-18 17:50:00',
+  },
+  {
+    id: 'post-16',
+    uid: '74129',
+    nickname: 'Tom',
+    email: 'tom@trip.com',
+    message: '更換了新的碳板跑鞋，回彈推進感驚人，5k 測試輕鬆刷新 PB！',
+    createdAt: '2026-08-17 07:45:00',
+  },
+  {
+    id: 'post-17',
+    uid: '63214',
+    nickname: 'Annie',
+    email: 'annie@trip.com',
+    message: '中秋團練河濱星光夜跑，感謝夥伴們帶跑，不知不覺就刷了 10k。',
+    createdAt: '2026-08-16 20:30:15',
+  },
+  {
+    id: 'post-18',
+    uid: '88392',
+    nickname: 'Hermann',
+    email: 'hermann@trip.com',
+    message: '本月運動里程正式突破 120km 目標！給自己買了條運動毛巾當獎勵。',
+    createdAt: '2026-08-15 18:20:00',
+  },
+  {
+    id: 'post-19',
+    uid: '91823',
+    nickname: 'David',
+    email: 'david@trip.com',
+    message: '雨天備案：室內跑步機配速跑 45 分鐘 + 核心平板支撐 3 組。',
+    createdAt: '2026-08-14 19:10:00',
+  },
+  {
+    id: 'post-20',
+    uid: '52910',
+    nickname: 'Kelly',
+    email: 'kelly@trip.com',
+    message: '休假日常爬七星山主東峰，雲海美得像仙境，戶外運動就是最棒的充電！',
+    createdAt: '2026-08-13 11:30:00',
+  },
 ];
 
-export const MyProfilePage: React.FC<MyProfilePageProps> = ({
-  userEmail,
-  syncStatus,
-  syncErrorMsg,
-  onForceSync,
-}) => {
+export const MyProfilePage: React.FC<MyProfilePageProps> = ({ userEmail }) => {
   const displayEmail = userEmail || 'hermann@trip.com';
 
   // User Profile Info
@@ -72,16 +212,23 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({
   const [message, setMessage] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [latestCheckIn, setLatestCheckIn] = useState<CheckInPost | null>(null);
-  const [posts, setPosts] = useState<CheckInPost[]>(() => {
+
+  // Pagination for posts (show in batches of 10)
+  const [visibleCount, setVisibleCount] = useState<number>(10);
+
+  const [allPosts, setAllPosts] = useState<CheckInPost[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_CHECKINS);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
       }
     } catch (e) {
       console.warn('Failed to parse check-in posts from localStorage');
     }
-    return INITIAL_SAMPLE_POSTS;
+    return INITIAL_COMMUNITY_POSTS;
   });
 
   // Listen to Firestore community_messages real-time
@@ -102,8 +249,19 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({
               (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             );
             if (firestorePosts.length > 0) {
-              setPosts(firestorePosts.slice(0, 10));
-              localStorage.setItem(STORAGE_KEY_CHECKINS, JSON.stringify(firestorePosts.slice(0, 10)));
+              // Merge with sample posts ensuring uniqueness
+              const mergedMap = new Map<string, CheckInPost>();
+              firestorePosts.forEach((p) => mergedMap.set(p.id, p));
+              INITIAL_COMMUNITY_POSTS.forEach((p) => {
+                if (!mergedMap.has(p.id)) {
+                  mergedMap.set(p.id, p);
+                }
+              });
+              const mergedList = Array.from(mergedMap.values()).sort(
+                (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+              );
+              setAllPosts(mergedList);
+              localStorage.setItem(STORAGE_KEY_CHECKINS, JSON.stringify(mergedList));
             }
           }
         },
@@ -116,72 +274,6 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({
     }
     return () => unsubscribe();
   }, []);
-
-  const [testResult, setTestResult] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; message: string }>({
-    status: 'idle',
-    message: '',
-  });
-
-  const handleTestWrite = async () => {
-    if (!auth.currentUser) {
-      setTestResult({
-        status: 'error',
-        message: '未偵測到 Firebase Auth 登入實例，請先登入帳號。',
-      });
-      return;
-    }
-
-    setTestResult({ status: 'testing', message: '正在嘗試寫入測試文件到 /users/{uid}/records/test 與 /community_messages/test...' });
-
-    try {
-      const user = auth.currentUser;
-      const testId = `test_${Date.now()}`;
-      
-      // Test 1: User doc
-      await setDoc(doc(db, 'users', user.uid), {
-        email: user.email,
-        uid: user.uid,
-        testWriteAt: new Date().toISOString(),
-      }, { merge: true });
-
-      // Test 2: User record subcollection
-      await setDoc(doc(db, 'users', user.uid, 'records', '2026-08'), {
-        month: '2026-08',
-        distance: 124.0,
-        minutes: 1180,
-        calories: 12200,
-        weight: 69.4,
-        notes: '即時連線測試',
-        updatedAt: new Date().toISOString(),
-      }, { merge: true });
-
-      // Test 3: Public community messages
-      await setDoc(doc(db, 'community_messages', testId), {
-        id: testId,
-        userId: user.uid,
-        email: user.email,
-        nickname: nickname,
-        message: '✅ 連線診斷測試成功',
-        createdAt: new Date().toISOString(),
-      });
-
-      setTestResult({
-        status: 'success',
-        message: `🎉 成功！已成功寫入 Firestore (UID: ${user.uid.slice(0, 8)}...)，資料庫可正常讀寫。`,
-      });
-    } catch (err: any) {
-      console.error('Test write failed:', err);
-      setTestResult({
-        status: 'error',
-        message: `寫入失敗 [${err.code || 'Error'}]: ${err.message || String(err)}。請確認 Firestore Rules 已發布且允許存取。`,
-      });
-    }
-  };
-
-  const handleSaveNickname = (newNick: string) => {
-    setNickname(newNick);
-    saveUserNickname(displayEmail, newNick);
-  };
 
   const handleCheckInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,9 +298,9 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({
       createdAt: timeStr,
     };
 
-    // Prepend new post, keep maximum of 10 posts
-    const updatedPosts = [newPost, ...posts.filter((p) => p.id !== newPost.id)].slice(0, 10);
-    setPosts(updatedPosts);
+    // Prepend new post
+    const updatedPosts = [newPost, ...allPosts.filter((p) => p.id !== newPost.id)];
+    setAllPosts(updatedPosts);
     setLatestCheckIn(newPost);
     localStorage.setItem(STORAGE_KEY_CHECKINS, JSON.stringify(updatedPosts));
 
@@ -242,8 +334,15 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({
     setIsSubmitting(false);
   };
 
+  const handleLoadMore = () => {
+    setVisibleCount((prev) => prev + 10);
+  };
+
+  const displayedPosts = allPosts.slice(0, visibleCount);
+  const hasMore = visibleCount < allPosts.length;
+
   return (
-    <div className="space-y-4 pb-20 pt-2">
+    <div className="space-y-4 pb-24 pt-2">
       {/* (A) 用戶 暱稱 與 Email 區塊 */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
@@ -254,9 +353,14 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({
             </div>
 
             <div>
-              <h1 className="text-base font-bold text-slate-900 leading-tight">
-                {nickname}
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base font-black text-slate-900 leading-tight">
+                  留言與社群分享
+                </h1>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-lime-100 text-[#5ea31b]">
+                  {nickname}
+                </span>
+              </div>
 
               <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
                 <Mail className="w-3.5 h-3.5 text-slate-400" />
@@ -274,98 +378,7 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({
         </div>
       </div>
 
-      {/* Firestore 雲端資料庫即時狀態卡片 */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-              <Database className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-xs font-bold text-slate-900">Firestore 雲端資料庫狀態</h2>
-              <p className="text-[10px] text-slate-400">sportagent-ae118 • 專屬雲端同步</p>
-            </div>
-          </div>
-
-          {/* Status Badge */}
-          {syncStatus === 'synced' && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">
-              <CheckCircle2 className="w-3 h-3" />
-              已同步至雲端
-            </span>
-          )}
-          {syncStatus === 'syncing' && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700 border border-amber-200 animate-pulse">
-              <RefreshCw className="w-3 h-3 animate-spin" />
-              同步中...
-            </span>
-          )}
-          {syncStatus === 'error' && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-100 text-red-700 border border-red-200">
-              <AlertCircle className="w-3 h-3" />
-              同步未就緒
-            </span>
-          )}
-        </div>
-
-        {syncErrorMsg && (
-          <div className="p-2.5 bg-red-50 text-red-700 text-[11px] rounded-xl border border-red-200 leading-relaxed flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <div>
-              <strong>雲端連線提示：</strong> {syncErrorMsg}
-              <div className="mt-1 text-[10px] text-red-600">
-                💡 請確認 Firebase Console 的 Firestore Database 已建立，且 Rules（規則）允許已登入用戶讀寫。
-              </div>
-            </div>
-          </div>
-        )}
-
-        {testResult.status !== 'idle' && (
-          <div
-            className={`p-2.5 rounded-xl text-[11px] leading-relaxed border ${
-              testResult.status === 'success'
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                : testResult.status === 'testing'
-                ? 'bg-amber-50 text-amber-800 border-amber-200 animate-pulse'
-                : 'bg-red-50 text-red-800 border-red-200'
-            }`}
-          >
-            <strong>測試診斷結果：</strong> {testResult.message}
-          </div>
-        )}
-
-        <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 text-xs">
-          <div className="text-[11px] text-slate-500 font-mono">
-            {auth.currentUser ? (
-              <span>帳號: <b className="text-slate-800">{auth.currentUser.email}</b> (UID: {auth.currentUser.uid.slice(0, 6)}...)</span>
-            ) : (
-              <span className="text-red-500 font-bold">⚠️ 未通過 Firebase 驗證</span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleTestWrite}
-              disabled={testResult.status === 'testing'}
-              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition cursor-pointer disabled:opacity-50"
-            >
-              連線寫入測試
-            </button>
-            {onForceSync && (
-              <button
-                onClick={onForceSync}
-                disabled={syncStatus === 'syncing'}
-                className="px-3 py-1 bg-[#5ea31b] hover:bg-[#4d8716] text-white font-bold rounded-lg transition flex items-center gap-1 cursor-pointer disabled:opacity-50 text-xs shadow-sm"
-              >
-                <RefreshCw className={`w-3 h-3 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
-                全部備份至雲端
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* (B) 運動打卡與留言區 - 深色底色 */}
+      {/* (B) 我要留言 - 深色底色 */}
       <div className="bg-slate-900 border border-slate-800 text-white p-5 rounded-2xl shadow-xl space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -373,7 +386,7 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({
               <MessageSquare className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white">運動打卡與留言區</h2>
+              <h2 className="text-sm font-black text-white">我要留言</h2>
               <p className="text-[10px] text-slate-400">寫下今日運動心得與成果分享</p>
             </div>
           </div>
@@ -405,14 +418,14 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({
             />
           </div>
 
-          {/* 打卡並儲存按鈕 - 深綠色立體浮現且字體反白清晰 */}
+          {/* 送出按鈕名稱改為 送出留言 */}
           <button
             type="submit"
             disabled={isSubmitting || !message.trim()}
-            className="w-full py-3.5 bg-[#1b6b1a] hover:bg-[#165a15] active:bg-[#124b11] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-lg shadow-green-950/70 border border-[#2b8b2a] flex items-center justify-center gap-2 transition-all transform active:scale-[0.99] tracking-wide"
+            className="w-full py-3.5 bg-[#1b6b1a] hover:bg-[#165a15] active:bg-[#124b11] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-lg shadow-green-950/70 border border-[#2b8b2a] flex items-center justify-center gap-2 transition-all transform active:scale-[0.99] tracking-wide cursor-pointer"
           >
             <Send className="w-4 h-4 text-white" />
-            <span className="text-white font-bold">送出打卡留言</span>
+            <span className="text-white font-bold">送出留言</span>
           </button>
         </form>
 
@@ -442,7 +455,7 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({
         )}
       </div>
 
-      {/* (C) 列出最近 10 筆留言 - 深色底色 */}
+      {/* (C) 社群最新10筆留言 - 深色底色 */}
       <div className="bg-slate-900 border border-slate-800 text-white p-5 rounded-2xl shadow-xl space-y-3.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -450,25 +463,25 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({
               <MessageSquare className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm font-black text-white">最近 10 筆打卡留言紀錄</h2>
+              <h2 className="text-sm font-black text-white">社群最新10筆留言</h2>
               <p className="text-[10px] text-slate-400">即時同步最新運動動態與社群分享</p>
             </div>
           </div>
 
           <span className="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] font-mono text-slate-300 border border-slate-700">
-            共 {posts.length} 筆
+            顯示 {displayedPosts.length} / 共 {allPosts.length} 筆
           </span>
         </div>
 
         <div className="space-y-2.5">
-          {posts.length === 0 ? (
+          {displayedPosts.length === 0 ? (
             <div className="p-8 text-center bg-slate-800/50 rounded-xl border border-slate-700/50 text-slate-400 space-y-1">
               <MessageSquare className="w-8 h-8 mx-auto text-slate-600" />
-              <p className="text-xs font-bold text-slate-300">目前尚無打卡紀錄</p>
-              <p className="text-[10px]">在上方輸入您的第一則打卡心得吧！</p>
+              <p className="text-xs font-bold text-slate-300">目前尚無留言紀錄</p>
+              <p className="text-[10px]">在上方輸入您的第一則留言吧！</p>
             </div>
           ) : (
-            posts.slice(0, 10).map((post, idx) => (
+            displayedPosts.map((post, idx) => (
               <div
                 key={post.id}
                 className="bg-slate-800/80 hover:bg-slate-850 p-3.5 rounded-xl border border-slate-700/80 space-y-2 transition shadow-sm"
@@ -503,6 +516,19 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({
             ))
           )}
         </div>
+
+        {/* 查看更多留言>>> 點擊後每次加載 10 筆 */}
+        {hasMore && (
+          <div className="pt-2 text-center border-t border-slate-800">
+            <button
+              type="button"
+              onClick={handleLoadMore}
+              className="text-xs font-semibold text-lime-400 hover:text-lime-300 hover:underline inline-flex items-center gap-1 py-1.5 px-3 rounded-lg hover:bg-slate-800/60 transition cursor-pointer"
+            >
+              查看更多留言 &gt;&gt;&gt;
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

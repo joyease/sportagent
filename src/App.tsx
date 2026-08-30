@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { UserRecord, UserPlan } from './types';
+import { UserRecord, UserPlan, SurveyRecord } from './types';
 import { INITIAL_RECORDS, INITIAL_PLANS } from './data/initialData';
+import { INITIAL_SURVEY_RECORDS } from './data/initialSurveyData';
 import { Header } from './components/Header';
 import { NavigationFooter, TabType } from './components/NavigationFooter';
 import { LoginView } from './components/LoginView';
@@ -11,6 +12,8 @@ import { RecordInputPage } from './components/RecordInputPage';
 import { PlanManagerPage } from './components/PlanManagerPage';
 import { ChallengeResultsPage } from './components/ChallengeResultsPage';
 import { SportsStatsPage } from './components/SportsStatsPage';
+import { FeatureInputPage } from './components/FeatureInputPage';
+import { AdviceComparePage } from './components/AdviceComparePage';
 import { PromoPage } from './components/PromoPage';
 import { InteractivePage } from './components/InteractivePage';
 import { EventsPage } from './components/EventsPage';
@@ -31,6 +34,7 @@ const STORAGE_KEYS = {
   USER: 'sportpal_user_email',
   RECORDS: 'sportpal_records_v1',
   PLANS: 'sportpal_plans_v1',
+  SURVEY: 'sportpal_survey_records_v1',
 };
 
 export default function App() {
@@ -69,6 +73,18 @@ export default function App() {
       console.warn('Failed to parse saved plans, falling back to initial data');
     }
     return INITIAL_PLANS;
+  });
+
+  const [surveyRecords, setSurveyRecords] = useState<Record<string, SurveyRecord>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.SURVEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.warn('Failed to parse saved survey records, falling back to initial data');
+    }
+    return INITIAL_SURVEY_RECORDS;
   });
 
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
@@ -112,6 +128,19 @@ export default function App() {
       for (const pl of currentPlans) {
         if (pl) {
           await setDoc(doc(db, 'users', uid, 'plans', pl.id), pl);
+        }
+      }
+
+      // 4. Write all survey records
+      const currentSurveys: Record<string, SurveyRecord> = surveyRecords;
+      for (const [period, sRec] of Object.entries(currentSurveys)) {
+        const s = sRec as SurveyRecord;
+        if (s) {
+          await setDoc(doc(db, 'users', uid, 'survey_records', period), {
+            ...s,
+            email,
+            updatedAt: new Date().toISOString(),
+          });
         }
       }
 
@@ -181,6 +210,25 @@ export default function App() {
             }
           }
 
+          // 4. Check / fetch survey records
+          const surveySnap = await getDocs(collection(db, 'users', user.uid, 'survey_records'));
+          if (!surveySnap.empty) {
+            const fetchedSurvey: Record<string, SurveyRecord> = {};
+            surveySnap.forEach((docSnap) => {
+              fetchedSurvey[docSnap.id] = docSnap.data() as SurveyRecord;
+            });
+            setSurveyRecords(fetchedSurvey);
+          } else {
+            // Seed initial survey records to Firestore
+            for (const [period, sRec] of Object.entries(INITIAL_SURVEY_RECORDS)) {
+              await setDoc(doc(db, 'users', user.uid, 'survey_records', period), {
+                ...sRec,
+                email: user.email,
+                updatedAt: new Date().toISOString(),
+              });
+            }
+          }
+
           setSyncStatus('synced');
         } catch (err: any) {
           console.warn('Firestore initial sync notice:', err);
@@ -203,6 +251,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.PLANS, JSON.stringify(plans));
   }, [plans]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.SURVEY, JSON.stringify(surveyRecords));
+  }, [surveyRecords]);
 
   // Auth actions
   const handleLogin = (email: string) => {
@@ -241,6 +293,33 @@ export default function App() {
         setSyncErrorMsg(null);
       } catch (err: any) {
         console.error('Firestore write record error:', err);
+        setSyncStatus('error');
+        setSyncErrorMsg(err.message || String(err));
+      }
+    }
+  };
+
+  // Survey record action
+  const handleSaveSurveyRecord = async (surveyRec: SurveyRecord) => {
+    setSurveyRecords((prev) => ({
+      ...prev,
+      [surveyRec.period]: surveyRec,
+    }));
+
+    if (auth.currentUser) {
+      try {
+        setSyncStatus('syncing');
+        await setDoc(
+          doc(db, 'users', auth.currentUser.uid, 'survey_records', surveyRec.period),
+          {
+            ...surveyRec,
+            updatedAt: new Date().toISOString(),
+          }
+        );
+        setSyncStatus('synced');
+        setSyncErrorMsg(null);
+      } catch (err: any) {
+        console.error('Firestore write survey record error:', err);
         setSyncStatus('error');
         setSyncErrorMsg(err.message || String(err));
       }
@@ -294,6 +373,7 @@ export default function App() {
   const handleResetDemoData = () => {
     setRecords(INITIAL_RECORDS);
     setPlans(INITIAL_PLANS);
+    setSurveyRecords(INITIAL_SURVEY_RECORDS);
   };
 
   // If user is not logged in, show Login Screen
@@ -303,8 +383,6 @@ export default function App() {
 
   const latestMonthRecord = records['2026-08'] || Object.values(records).pop();
   const activePlans = plans.filter((p) => p.status === 'active');
-
-  const isSubPage = currentTab !== 'home';
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-start text-slate-800">
@@ -397,6 +475,23 @@ export default function App() {
               records={records}
               onSaveRecord={handleSaveRecord}
               onNavigateToBadges={() => setCurrentTab('badges')}
+            />
+          )}
+
+          {currentTab === 'survey' && (
+            <FeatureInputPage
+              userEmail={userEmail}
+              surveyRecords={surveyRecords}
+              onSaveSurveyRecord={handleSaveSurveyRecord}
+              onNavigateToAdvice={() => setCurrentTab('advice')}
+            />
+          )}
+
+          {currentTab === 'advice' && (
+            <AdviceComparePage
+              userEmail={userEmail}
+              surveyRecords={surveyRecords}
+              onNavigateToFeatureInput={() => setCurrentTab('survey')}
             />
           )}
 
