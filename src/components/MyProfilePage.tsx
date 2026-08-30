@@ -8,10 +8,13 @@ import {
   CheckCircle2,
   Clock,
   ChevronDown,
+  Trash2,
+  RotateCcw,
+  AlertTriangle,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { CheckInPost } from '../types';
-import { auth, db, doc, setDoc, collection, onSnapshot } from '../firebase';
+import { auth, db, doc, setDoc, deleteDoc, collection, onSnapshot } from '../firebase';
 import { getUserNickname } from '../utils/user';
 
 interface MyProfilePageProps {
@@ -23,6 +26,7 @@ interface MyProfilePageProps {
 
 const STORAGE_KEY_CHECKINS = 'sportpal_checkin_posts_v3';
 const STORAGE_KEY_UID = 'sportpal_user_uid_v1';
+const STORAGE_KEY_DELETED_IDS = 'sportpal_deleted_post_ids_v1';
 
 const INITIAL_COMMUNITY_POSTS: CheckInPost[] = [
   {
@@ -212,16 +216,29 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({ userEmail }) => {
   const [message, setMessage] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [latestCheckIn, setLatestCheckIn] = useState<CheckInPost | null>(null);
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
   // Pagination for posts (show in batches of 10)
   const [visibleCount, setVisibleCount] = useState<number>(10);
 
+  // Deleted post IDs tracker to prevent resurrection
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_DELETED_IDS);
+      if (saved) {
+        const arr = JSON.parse(saved);
+        if (Array.isArray(arr)) return new Set<string>(arr as string[]);
+      }
+    } catch {}
+    return new Set<string>();
+  });
+
   const [allPosts, setAllPosts] = useState<CheckInPost[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_CHECKINS);
-      if (saved) {
+      if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       }
@@ -242,27 +259,35 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({ userEmail }) => {
           if (!snapshot.empty) {
             const firestorePosts: CheckInPost[] = [];
             snapshot.forEach((docSnap) => {
-              firestorePosts.push(docSnap.data() as CheckInPost);
+              const data = docSnap.data() as CheckInPost;
+              if (!deletedIds.has(data.id)) {
+                firestorePosts.push(data);
+              }
             });
             // Sort by createdAt descending
             firestorePosts.sort(
               (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             );
-            if (firestorePosts.length > 0) {
-              // Merge with sample posts ensuring uniqueness
+
+            // Merge with local existing posts
+            setAllPosts((prevPosts) => {
               const mergedMap = new Map<string, CheckInPost>();
-              firestorePosts.forEach((p) => mergedMap.set(p.id, p));
-              INITIAL_COMMUNITY_POSTS.forEach((p) => {
-                if (!mergedMap.has(p.id)) {
+              // Add firestore posts first
+              firestorePosts.forEach((p) => {
+                if (!deletedIds.has(p.id)) mergedMap.set(p.id, p);
+              });
+              // Add existing local posts if not deleted
+              prevPosts.forEach((p) => {
+                if (!deletedIds.has(p.id) && !mergedMap.has(p.id)) {
                   mergedMap.set(p.id, p);
                 }
               });
               const mergedList = Array.from(mergedMap.values()).sort(
                 (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
               );
-              setAllPosts(mergedList);
               localStorage.setItem(STORAGE_KEY_CHECKINS, JSON.stringify(mergedList));
-            }
+              return mergedList;
+            });
           }
         },
         (err) => {
@@ -273,7 +298,14 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({ userEmail }) => {
       console.warn('Failed to attach Firestore messages listener:', e);
     }
     return () => unsubscribe();
-  }, []);
+  }, [deletedIds]);
+
+  const showNotification = (msg: string) => {
+    setNoticeMessage(msg);
+    setTimeout(() => {
+      setNoticeMessage((curr) => (curr === msg ? null : curr));
+    }, 3000);
+  };
 
   const handleCheckInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -332,6 +364,63 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({ userEmail }) => {
 
     setMessage('');
     setIsSubmitting(false);
+    showNotification('🎉 留言發布成功！');
+  };
+
+  // Delete single post
+  const handleDeletePost = async (postId: string) => {
+    // Add to deleted IDs set
+    const updatedDeleted = new Set(deletedIds);
+    updatedDeleted.add(postId);
+    setDeletedIds(updatedDeleted);
+    localStorage.setItem(STORAGE_KEY_DELETED_IDS, JSON.stringify(Array.from(updatedDeleted)));
+
+    // Remove from local state
+    const updatedList = allPosts.filter((p) => p.id !== postId);
+    setAllPosts(updatedList);
+    localStorage.setItem(STORAGE_KEY_CHECKINS, JSON.stringify(updatedList));
+
+    // If it's a firestore doc, attempt delete
+    try {
+      await deleteDoc(doc(db, 'community_messages', postId));
+    } catch (err) {
+      // Ignored for demo posts
+    }
+
+    showNotification('🗑️ 已成功刪除該筆留言');
+  };
+
+  // Clear all demo posts (post-1 to post-20)
+  const handleClearDemoPosts = () => {
+    const demoIds = INITIAL_COMMUNITY_POSTS.map((p) => p.id);
+    const updatedDeleted = new Set(deletedIds);
+    demoIds.forEach((id) => updatedDeleted.add(id));
+    setDeletedIds(updatedDeleted);
+    localStorage.setItem(STORAGE_KEY_DELETED_IDS, JSON.stringify(Array.from(updatedDeleted)));
+
+    const updatedList = allPosts.filter((p) => !p.id.startsWith('post-'));
+    setAllPosts(updatedList);
+    localStorage.setItem(STORAGE_KEY_CHECKINS, JSON.stringify(updatedList));
+
+    showNotification('✨ 已一鍵清除所有示範留言！');
+  };
+
+  // Restore demo posts
+  const handleRestoreDemoPosts = () => {
+    const demoIds = new Set<string>(INITIAL_COMMUNITY_POSTS.map((p) => p.id));
+    const remainingIds = Array.from<string>(deletedIds).filter((id) => !demoIds.has(id));
+    const updatedDeleted = new Set<string>(remainingIds);
+    setDeletedIds(updatedDeleted);
+    localStorage.setItem(STORAGE_KEY_DELETED_IDS, JSON.stringify(remainingIds));
+
+    const currentNonDemo = allPosts.filter((p) => !p.id.startsWith('post-'));
+    const restored = [...currentNonDemo, ...INITIAL_COMMUNITY_POSTS].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    setAllPosts(restored);
+    localStorage.setItem(STORAGE_KEY_CHECKINS, JSON.stringify(restored));
+
+    showNotification('🔄 已還原系統示範留言');
   };
 
   const handleLoadMore = () => {
@@ -340,9 +429,17 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({ userEmail }) => {
 
   const displayedPosts = allPosts.slice(0, visibleCount);
   const hasMore = visibleCount < allPosts.length;
+  const hasDemoPosts = allPosts.some((p) => p.id.startsWith('post-'));
 
   return (
     <div className="space-y-4 pb-24 pt-2">
+      {/* Toast Notification */}
+      {noticeMessage && (
+        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 text-white px-4 py-2 rounded-full shadow-2xl border border-lime-500/50 text-xs font-bold flex items-center gap-2 animate-bounce">
+          <span>{noticeMessage}</span>
+        </div>
+      )}
+
       {/* (A) 用戶 暱稱 與 Email 區塊 */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
@@ -457,20 +554,45 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({ userEmail }) => {
 
       {/* (C) 社群最新10筆留言 - 深色底色 */}
       <div className="bg-slate-900 border border-slate-800 text-white p-5 rounded-2xl shadow-xl space-y-3.5">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400">
               <MessageSquare className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm font-black text-white">社群最新10筆留言</h2>
+              <h2 className="text-sm font-black text-white">社群最新留言</h2>
               <p className="text-[10px] text-slate-400">即時同步最新運動動態與社群分享</p>
             </div>
           </div>
 
-          <span className="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] font-mono text-slate-300 border border-slate-700">
-            顯示 {displayedPosts.length} / 共 {allPosts.length} 筆
-          </span>
+          <div className="flex items-center gap-2">
+            {/* Action buttons: Clear Demo Posts or Restore */}
+            {hasDemoPosts ? (
+              <button
+                type="button"
+                onClick={handleClearDemoPosts}
+                className="px-2.5 py-1 bg-red-900/40 hover:bg-red-800/60 border border-red-700/60 text-red-300 rounded-lg text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
+                title="一鍵清空所有預設的示範假留言"
+              >
+                <Trash2 className="w-3 h-3 text-red-400" />
+                <span>一鍵清空示範留言</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleRestoreDemoPosts}
+                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
+                title="還原初始示範留言"
+              >
+                <RotateCcw className="w-3 h-3 text-lime-400" />
+                <span>還原示範留言</span>
+              </button>
+            )}
+
+            <span className="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] font-mono text-slate-300 border border-slate-700">
+              顯示 {displayedPosts.length} / 共 {allPosts.length} 筆
+            </span>
+          </div>
         </div>
 
         <div className="space-y-2.5">
@@ -478,15 +600,15 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({ userEmail }) => {
             <div className="p-8 text-center bg-slate-800/50 rounded-xl border border-slate-700/50 text-slate-400 space-y-1">
               <MessageSquare className="w-8 h-8 mx-auto text-slate-600" />
               <p className="text-xs font-bold text-slate-300">目前尚無留言紀錄</p>
-              <p className="text-[10px]">在上方輸入您的第一則留言吧！</p>
+              <p className="text-[10px]">在上方輸入您的第一則留言，或點擊上方「還原示範留言」！</p>
             </div>
           ) : (
             displayedPosts.map((post, idx) => (
               <div
                 key={post.id}
-                className="bg-slate-800/80 hover:bg-slate-850 p-3.5 rounded-xl border border-slate-700/80 space-y-2 transition shadow-sm"
+                className="bg-slate-800/80 hover:bg-slate-850 p-3.5 rounded-xl border border-slate-700/80 space-y-2 transition shadow-sm group"
               >
-                {/* Post Header: Nickname, UID, Time */}
+                {/* Post Header: Nickname, UID, Time, Delete Button */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-lime-500/20 text-lime-400 font-black text-[10px] flex items-center justify-center border border-lime-500/30">
@@ -498,14 +620,31 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({ userEmail }) => {
                         <span className="text-[9px] font-mono font-bold bg-slate-900 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700">
                           {post.uid}
                         </span>
+                        {post.id.startsWith('post-') && (
+                          <span className="text-[9px] px-1.5 py-0.2 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded">
+                            示範
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1 shrink-0">
-                    <Clock className="w-3 h-3 text-slate-500" />
-                    {post.createdAt}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-slate-500" />
+                      {post.createdAt}
+                    </span>
+
+                    {/* Single Post Delete Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePost(post.id)}
+                      className="p-1 rounded-md text-slate-500 hover:text-red-400 hover:bg-red-500/20 transition cursor-pointer opacity-70 group-hover:opacity-100"
+                      title="刪除此則留言"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Message Content */}
@@ -533,3 +672,4 @@ export const MyProfilePage: React.FC<MyProfilePageProps> = ({ userEmail }) => {
     </div>
   );
 };
+

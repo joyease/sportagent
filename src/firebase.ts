@@ -17,6 +17,7 @@ import {
   onSnapshot,
   query,
   where,
+  deleteDoc,
   serverTimestamp,
 } from 'firebase/firestore';
 
@@ -47,6 +48,7 @@ export {
   onSnapshot,
   query,
   where,
+  deleteDoc,
   serverTimestamp,
 };
 export type { FirebaseUser };
