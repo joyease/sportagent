@@ -35,7 +35,7 @@ export function interpretWmoCode(code: number): { text: string; iconName: string
 
 export async function fetchCityWeather(city: string, lat: number, lon: number): Promise<WeatherData> {
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m&timezone=Asia%2FTaipei`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m&timezone=auto`;
     const res = await fetch(url);
     if (!res.ok) {
       throw new Error(`Weather API error: ${res.statusText}`);

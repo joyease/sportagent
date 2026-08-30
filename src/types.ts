@@ -113,11 +113,18 @@ export interface WeatherData {
   exerciseIndex: string;
 }
 
+export interface SpotDetail {
+  name: string;
+  latitude: number;
+  longitude: number;
+  description?: string;
+}
+
 export interface SportsSpotEntry {
   latitude: number;
   longitude: number;
   description?: string;
-  spots?: string[];
+  spots?: (string | SpotDetail)[];
 }
 
 export interface PromoDeal {
