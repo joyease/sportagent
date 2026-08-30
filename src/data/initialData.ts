@@ -191,6 +191,17 @@ export const INTERACTIVE_CHALLENGES: InteractiveChallenge[] = [
     badgeTag: '山友專屬',
     description: '一起來挑戰！累積攀登台灣小百岳步道，達成目標即刻領取專屬認證。',
   },
+  {
+    id: 'challenge-4',
+    title: '轉轉地球儀',
+    platform: '3D 互動探索',
+    participants: 9400,
+    reward: '3D 地球儀互動與足跡探索',
+    url: 'https://joyease.github.io/game/2603DragGlobe2.html',
+    icon: 'Globe',
+    badgeTag: '3D地球儀',
+    description: '3D 的地球儀看他們去過哪些國家?',
+  },
 ];
 
 export const EVENT_NEWS: EventNews[] = [
