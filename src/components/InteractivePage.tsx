@@ -10,6 +10,7 @@ import {
   Signal,
   Globe,
   Sparkles,
+  Train,
 } from 'lucide-react';
 
 interface CardTheme {
@@ -40,17 +41,17 @@ export const InteractivePage: React.FC = () => {
           glowAccent: 'bg-red-500',
           spanClass: 'col-span-2 sm:col-span-2',
         };
-      case 'challenge-2': // (2) 台灣3D地圖100景 - 粉紫色
+      case 'challenge-2': // (2) 臺灣246驛站巡禮 - 鐵道深藍
         return {
-          border: 'border-fuchsia-500/40 hover:border-fuchsia-400',
-          bgGradient: 'bg-gradient-to-br from-purple-950/80 via-slate-900 to-fuchsia-950/70',
-          iconBg: 'bg-fuchsia-500/20 border-fuchsia-500/30',
-          iconColor: 'text-fuchsia-400',
-          badgeBg: 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30',
+          border: 'border-blue-500/40 hover:border-blue-400',
+          bgGradient: 'bg-gradient-to-br from-blue-950/80 via-slate-900 to-indigo-950/70',
+          iconBg: 'bg-blue-500/20 border-blue-500/30',
+          iconColor: 'text-blue-300',
+          badgeBg: 'bg-blue-500/20 text-blue-200 border-blue-500/30',
           buttonGradient:
-            'bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white shadow-fuchsia-950/50',
-          textColor: 'text-fuchsia-200',
-          glowAccent: 'bg-fuchsia-500',
+            'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-950/50',
+          textColor: 'text-blue-200',
+          glowAccent: 'bg-blue-500',
           spanClass: 'col-span-1 sm:col-span-1',
         };
       case 'challenge-3': // (3) 測測你的網路訊號 - 淺藍色
@@ -92,18 +93,18 @@ export const InteractivePage: React.FC = () => {
           glowAccent: 'bg-indigo-500',
           spanClass: 'col-span-1 sm:col-span-1',
         };
-      case 'challenge-6': // (6) 神明遶境來祈福 - 黃色
+      case 'challenge-6': // (6) 臺灣100景點 - 幻彩紫金
       default:
         return {
-          border: 'border-amber-500/40 hover:border-amber-400',
-          bgGradient: 'bg-gradient-to-br from-amber-950/80 via-slate-900 to-yellow-950/70',
-          iconBg: 'bg-amber-500/20 border-amber-500/30',
-          iconColor: 'text-amber-400',
-          badgeBg: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+          border: 'border-fuchsia-500/40 hover:border-fuchsia-400',
+          bgGradient: 'bg-gradient-to-br from-purple-950/80 via-slate-900 to-fuchsia-950/70',
+          iconBg: 'bg-fuchsia-500/20 border-fuchsia-500/30',
+          iconColor: 'text-fuchsia-300',
+          badgeBg: 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30',
           buttonGradient:
-            'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold shadow-amber-950/50',
-          textColor: 'text-amber-200',
-          glowAccent: 'bg-amber-400',
+            'bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white shadow-fuchsia-950/50',
+          textColor: 'text-fuchsia-200',
+          glowAccent: 'bg-fuchsia-500',
           spanClass: 'col-span-2 sm:col-span-2',
         };
     }
@@ -111,6 +112,8 @@ export const InteractivePage: React.FC = () => {
 
   const getIcon = (iconName: string, colorClass: string) => {
     switch (iconName) {
+      case 'Train':
+        return <Train className={`w-5 h-5 ${colorClass}`} />;
       case 'Landmark':
         return <Landmark className={`w-5 h-5 ${colorClass}`} />;
       case 'Compass':

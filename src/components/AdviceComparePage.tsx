@@ -3,23 +3,31 @@ import { SurveyRecord } from '../types';
 import { getUserNickname } from '../utils/user';
 import { SURVEY_PERIODS, INITIAL_SURVEY_RECORDS } from '../data/initialSurveyData';
 import {
+  generateSmartPrescriptions,
+  calculateSurveyDiffs,
+} from '../utils/prescriptionRules';
+import {
   Sparkles,
   TrendingUp,
-  ArrowRight,
   Activity,
   Flame,
   Scale,
   Calendar,
   Zap,
   Navigation,
-  Luggage,
   Trophy,
-  ShoppingBag,
-  Smartphone,
   ChevronRight,
   HeartPulse,
-  ShieldCheck,
   FileSpreadsheet,
+  Footprints,
+  Bike,
+  Clock,
+  MapPin,
+  Globe,
+  Tv,
+  Smartphone,
+  Layers,
+  Code2,
 } from 'lucide-react';
 
 interface AdviceComparePageProps {
@@ -63,51 +71,9 @@ export const AdviceComparePage: React.FC<AdviceComparePageProps> = ({
     );
   }, [surveyRecords, periodBId]);
 
-  // Comparison Math Calculations
+  // Comparison Math Calculations via Decision Rules Engine
   const diffs = useMemo(() => {
-    const calcDiff = (valB: number, valA: number) => {
-      const diff = valB - valA;
-      const rate = valA > 0 ? (diff / valA) * 100 : 0;
-      return { diff, rate };
-    };
-
-    const count = calcDiff(recordB.totalRecordsCount, recordA.totalRecordsCount);
-    const steps = calcDiff(recordB.totalSteps, recordA.totalSteps);
-    const distance = calcDiff(recordB.totalDistance, recordA.totalDistance);
-    const calories = calcDiff(recordB.totalCalories, recordA.totalCalories);
-    const minutes = calcDiff(recordB.totalMinutes, recordA.totalMinutes);
-    const weightDiff = recordB.weight - recordA.weight;
-
-    const bmiA =
-      recordA.height > 0 && recordA.weight > 0
-        ? recordA.weight / Math.pow(recordA.height / 100, 2)
-        : 0;
-    const bmiB =
-      recordB.height > 0 && recordB.weight > 0
-        ? recordB.weight / Math.pow(recordB.height / 100, 2)
-        : 0;
-
-    const gpsRateA =
-      recordA.gpsCount + recordA.noGpsCount > 0
-        ? (recordA.gpsCount / (recordA.gpsCount + recordA.noGpsCount)) * 100
-        : 0;
-    const gpsRateB =
-      recordB.gpsCount + recordB.noGpsCount > 0
-        ? (recordB.gpsCount / (recordB.gpsCount + recordB.noGpsCount)) * 100
-        : 0;
-
-    return {
-      count,
-      steps,
-      distance,
-      calories,
-      minutes,
-      weightDiff,
-      bmiA,
-      bmiB,
-      gpsRateA,
-      gpsRateB,
-    };
+    return calculateSurveyDiffs(recordA, recordB);
   }, [recordA, recordB]);
 
   // Sports items comparison
@@ -116,30 +82,29 @@ export const AdviceComparePage: React.FC<AdviceComparePageProps> = ({
       {
         name: '跑步',
         icon: '🏃',
-        valA: recordA.runningCount,
-        valB: recordB.runningCount,
+        valA: recordA.runningCount || 0,
+        valB: recordB.runningCount || 0,
+        kmA: recordA.runningKm || 0,
+        kmB: recordB.runningKm || 0,
         color: 'from-lime-500 to-[#5ea31b]',
       },
       {
-        name: '登山健行',
-        icon: '⛰️',
-        valA: recordA.hikingCount,
-        valB: recordB.hikingCount,
-        color: 'from-emerald-500 to-teal-600',
-      },
-      {
-        name: '步行健走',
-        icon: '🚶',
-        valA: recordA.walkingCount,
-        valB: recordB.walkingCount,
-        color: 'from-sky-500 to-blue-600',
-      },
-      {
-        name: '自行車',
+        name: '單車騎行',
         icon: '🚴',
-        valA: recordA.cyclingCount,
-        valB: recordB.cyclingCount,
+        valA: recordA.cyclingCount || 0,
+        valB: recordB.cyclingCount || 0,
+        kmA: recordA.cyclingKm || 0,
+        kmB: recordB.cyclingKm || 0,
         color: 'from-amber-500 to-orange-600',
+      },
+      {
+        name: '健走',
+        icon: '🚶',
+        valA: recordA.walkingCount || 0,
+        valB: recordB.walkingCount || 0,
+        kmA: recordA.walkingKm || 0,
+        kmB: recordB.walkingKm || 0,
+        color: 'from-sky-500 to-blue-600',
       },
     ];
   }, [recordA, recordB]);
@@ -149,70 +114,10 @@ export const AdviceComparePage: React.FC<AdviceComparePageProps> = ({
     10
   );
 
-  // Dynamic Personalized Smart Prescriptions
+  // Dynamic Personalized Smart Prescriptions generated from Decision Rules Engine
   const prescriptions = useMemo(() => {
-    const list = [];
-
-    // 1. 心肺與耐力處方
-    if (diffs.distance.diff > 0) {
-      list.push({
-        title: '心肺與跑量進階處方',
-        tag: '耐力提升',
-        color: 'emerald',
-        icon: TrendingUp,
-        content: `恭喜！${recordB.periodName} 總運動距離達 ${recordB.totalDistance} km，比基準期成長了 ${diffs.distance.rate.toFixed(1)}% (+${diffs.distance.diff.toFixed(1)} km)。建議下個階段每週安排 1 次漸進式長距離耐力跑（LSD 8-12km），配速控制在最大心率 65-75%，讓有氧心肺基礎更加穩固。`,
-      });
-    } else {
-      list.push({
-        title: '運動量維持與課表規劃',
-        tag: '穩定維持',
-        color: 'amber',
-        icon: Activity,
-        content: `目前運動總量持平或略有調降，建議每週固定鎖定 3 個運動日（如二、四、六），每次維持 30-45 分鐘中等強度運動，避免因天候或忙碌中斷訓練習慣。`,
-      });
-    }
-
-    // 2. 體態與熱量管理
-    if (diffs.weightDiff < 0) {
-      list.push({
-        title: '體態雕塑與減脂處方',
-        tag: '體態優化',
-        color: 'purple',
-        icon: Scale,
-        content: `體重從 ${recordA.weight} kg 降至 ${recordB.weight} kg（成功減輕 ${Math.abs(diffs.weightDiff).toFixed(1)} kg，BMI 降為 ${diffs.bmiB.toFixed(1)}）。卡路里總消耗增長 ${diffs.calories.rate.toFixed(1)}%，燃脂效率相當優異！建議運動後 30 分鐘內補充優質蛋白質（如豆漿、水煮蛋、乳清），維持肌肉量。`,
-      });
-    } else {
-      list.push({
-        title: '代謝提升與能量平衡處方',
-        tag: '熱量管理',
-        color: 'sky',
-        icon: Flame,
-        content: `目前體重維持在 ${recordB.weight} kg（BMI: ${diffs.bmiB.toFixed(1)}）。若想進一步提升線條，建議每週加入 2 次高強度間歇訓練（HIIT 或間歇跑），可加速運動後後燃效應（EPOC），提升全日基礎代謝率。`,
-      });
-    }
-
-    // 3. 運動傷害防護與肌力平衡
-    list.push({
-      title: '關節防護與交叉訓練建議',
-      tag: '運動防護',
-      color: 'lime',
-      icon: ShieldCheck,
-      content: `運動記錄中跑步佔比最高（${recordB.runningCount} 次），登山（${recordB.hikingCount} 次）與單車（${recordB.cyclingCount} 次）為輔。建議每週安排 1 次深蹲、弓步蹲等下肢與核心肌群訓練，可大幅降低跑者膝（ITBS）與足底筋膜炎風險，並於運動後確實進行下肢肌群靜態伸展 15 分鐘。`,
-    });
-
-    // 4. 運動旅遊與賽事備戰
-    if (recordB.marathonEventsCount > 0 || recordB.outdoorEventsCount > 0) {
-      list.push({
-        title: '下半年賽事備戰與戶外旅遊指南',
-        tag: '賽事挑戰',
-        color: 'orange',
-        icon: Trophy,
-        content: `您在 ${recordB.periodName} 報名了 ${recordB.marathonEventsCount} 場路跑賽事與 ${recordB.outdoorEventsCount} 場登山單車活動，且國內外旅遊運動記錄習慣高達 ${(diffs.gpsRateB).toFixed(0)}%！建議賽前 4 週進行模擬配速跑，並善用 ${recordB.usedApps.join('、')} 追蹤心率區間，以最佳狀態迎戰賽事。`,
-      });
-    }
-
-    return list;
-  }, [diffs, recordA, recordB]);
+    return generateSmartPrescriptions(recordA, recordB);
+  }, [recordA, recordB]);
 
   return (
     <div className="space-y-4 pb-24 pt-2">
@@ -229,11 +134,11 @@ export const AdviceComparePage: React.FC<AdviceComparePageProps> = ({
               <div className="flex items-center gap-2">
                 <h1 className="text-lg font-black tracking-tight text-white">運動建議與半年比較</h1>
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 shadow-xs">
-                  化繁為簡
+                  決策處方引擎
                 </span>
               </div>
               <p className="text-xs text-emerald-200/80 mt-0.5">
-                透過跨半年運動特徵多維度對比，產生個人化智慧運動處方
+                跨半年特徵多維對比 • 決策規則 Decision Rules 處方生成
               </p>
             </div>
           </div>
@@ -253,7 +158,7 @@ export const AdviceComparePage: React.FC<AdviceComparePageProps> = ({
               className="text-[11px] font-bold text-white bg-emerald-700/80 hover:bg-emerald-600 px-3 py-1.5 rounded-full flex items-center gap-1 transition shadow-xs cursor-pointer"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
-              修改/輸入特徵資料
+              輸入/修改運動特徵
               <ChevronRight className="w-3 h-3" />
             </button>
           )}
@@ -279,7 +184,7 @@ export const AdviceComparePage: React.FC<AdviceComparePageProps> = ({
             <select
               value={periodAId}
               onChange={(e) => setPeriodAId(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-lime-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-lime-500 outline-none"
             >
               {SURVEY_PERIODS.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -302,7 +207,7 @@ export const AdviceComparePage: React.FC<AdviceComparePageProps> = ({
             <select
               value={periodBId}
               onChange={(e) => setPeriodBId(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-lime-50 border border-lime-300 rounded-xl font-bold text-[#5ea31b] focus:bg-white focus:ring-2 focus:ring-lime-500"
+              className="w-full px-3 py-2 text-xs bg-lime-50 border border-lime-300 rounded-xl font-bold text-[#5ea31b] focus:bg-white focus:ring-2 focus:ring-lime-500 outline-none"
             >
               {SURVEY_PERIODS.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -325,18 +230,18 @@ export const AdviceComparePage: React.FC<AdviceComparePageProps> = ({
             </span>
             <span
               className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
-                diffs.count.diff >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                diffs.countDiff >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
               }`}
             >
-              {diffs.count.diff >= 0 ? `+${diffs.count.rate.toFixed(0)}%` : `${diffs.count.rate.toFixed(0)}%`}
+              {diffs.countDiff >= 0 ? `+${diffs.countRate.toFixed(0)}%` : `${diffs.countRate.toFixed(0)}%`}
             </span>
           </div>
 
           <div className="flex items-baseline gap-1.5">
-            <span className="text-xl font-black text-slate-900">{recordB.totalRecordsCount}</span>
+            <span className="text-xl font-black text-slate-900">{recordB.totalRecordsCount || 0}</span>
             <span className="text-xs text-slate-400 font-semibold">次</span>
             <span className="text-[11px] text-slate-400 ml-auto font-mono">
-              (前期 {recordA.totalRecordsCount})
+              (前期 {recordA.totalRecordsCount || 0})
             </span>
           </div>
         </div>
@@ -346,44 +251,46 @@ export const AdviceComparePage: React.FC<AdviceComparePageProps> = ({
           <div className="flex items-center justify-between text-slate-500 text-[11px] mb-1">
             <span className="font-bold flex items-center gap-1">
               <Navigation className="w-3.5 h-3.5 text-sky-600" />
-              累積運動距離
+              累積總運動距離
             </span>
             <span
               className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
-                diffs.distance.diff >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                diffs.distanceDiff >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
               }`}
             >
-              {diffs.distance.diff >= 0 ? `+${diffs.distance.rate.toFixed(0)}%` : `${diffs.distance.rate.toFixed(0)}%`}
+              {diffs.distanceDiff >= 0 ? `+${diffs.distanceRate.toFixed(0)}%` : `${diffs.distanceRate.toFixed(0)}%`}
             </span>
           </div>
 
           <div className="flex items-baseline gap-1.5">
-            <span className="text-xl font-black text-slate-900">{recordB.totalDistance}</span>
+            <span className="text-xl font-black text-slate-900">{diffs.totalDistanceB.toFixed(0)}</span>
             <span className="text-xs text-slate-400 font-semibold">km</span>
             <span className="text-[11px] text-slate-400 ml-auto font-mono">
-              (前期 {recordA.totalDistance})
+              (前期 {diffs.totalDistanceA.toFixed(0)})
             </span>
           </div>
         </div>
 
-        {/* 3. 消耗熱量 */}
+        {/* 3. 每日步數大卡消耗 */}
         <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 text-[11px] mb-1">
             <span className="font-bold flex items-center gap-1">
               <Flame className="w-3.5 h-3.5 text-orange-500" />
-              消耗總卡路里
+              每日步數大卡
             </span>
             <span
               className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
-                diffs.calories.diff >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                diffs.caloriesDiff >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
               }`}
             >
-              {diffs.calories.diff >= 0 ? `+${diffs.calories.rate.toFixed(0)}%` : `${diffs.calories.rate.toFixed(0)}%`}
+              {diffs.caloriesDiff >= 0 ? `+${diffs.caloriesRate.toFixed(0)}%` : `${diffs.caloriesRate.toFixed(0)}%`}
             </span>
           </div>
 
           <div className="flex items-baseline gap-1.5">
-            <span className="text-xl font-black text-slate-900">{recordB.totalCalories.toLocaleString()}</span>
+            <span className="text-xl font-black text-slate-900">
+              {(recordB.dailyStepsCalories || 0).toLocaleString()}
+            </span>
             <span className="text-xs text-slate-400 font-semibold">kcal</span>
           </div>
         </div>
@@ -418,8 +325,8 @@ export const AdviceComparePage: React.FC<AdviceComparePageProps> = ({
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
         <div className="flex items-center justify-between border-b border-slate-100 pb-2">
           <div>
-            <h3 className="text-xs font-black text-slate-800">各項運動次數分佈對比</h3>
-            <p className="text-[10px] text-slate-400">跑步、登山、步行、自行車半年期次數變化</p>
+            <h3 className="text-xs font-black text-slate-800">跑步、單車、健走次數與距離比較</h3>
+            <p className="text-[10px] text-slate-400">雙期運動次數與累積公里數對比</p>
           </div>
           <span className="text-[10px] font-bold text-lime-700 bg-lime-50 px-2 py-0.5 rounded-full border border-lime-200">
             {recordA.periodName} (灰) vs {recordB.periodName} (綠)
@@ -438,6 +345,9 @@ export const AdviceComparePage: React.FC<AdviceComparePageProps> = ({
                   <span className="flex items-center gap-1.5">
                     <span>{item.icon}</span>
                     <span>{item.name}</span>
+                    <span className="text-[10px] text-slate-400 font-normal">
+                      ({item.kmB} km)
+                    </span>
                   </span>
                   <div className="flex items-center gap-2">
                     <span className="text-slate-400 text-[11px] font-normal">{item.valA} 次 ➔</span>
@@ -475,45 +385,78 @@ export const AdviceComparePage: React.FC<AdviceComparePageProps> = ({
         </div>
       </div>
 
-      {/* Behavioral & Strength Comparison Grid */}
+      {/* Behavioral, Schedule & Ecosystem Details */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
         <h3 className="text-xs font-black text-slate-800 border-b border-slate-100 pb-2 flex items-center gap-1.5">
           <Zap className="w-4 h-4 text-amber-500" />
-          運動強度、軌跡與習慣轉變
+          時段分配、生態系行為與常用 APP 轉變
         </h3>
 
         <div className="grid grid-cols-2 gap-2 text-xs">
+          {/* 平日與假日次數 */}
           <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-            <span className="text-[10px] text-slate-400 block">運動頻率習慣</span>
+            <span className="text-[10px] text-slate-400 block">運動時段 (平日/假日)</span>
             <div className="font-bold text-slate-800 mt-0.5">
-              {recordA.frequency} <span className="text-slate-400">➔</span>{' '}
-              <span className="text-[#5ea31b] font-extrabold">{recordB.frequency}</span>
+              平日 {recordB.weekdayCount || 0} 次 / 假日 {recordB.weekendCount || 0} 次
             </div>
           </div>
 
+          {/* 經常運動縣市與海外 */}
           <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-            <span className="text-[10px] text-slate-400 block">較強運動頻率</span>
+            <span className="text-[10px] text-slate-400 block">主要運動地點與海外</span>
             <div className="font-bold text-slate-800 mt-0.5">
-              {recordA.intenseFrequency} <span className="text-slate-400">➔</span>{' '}
-              <span className="text-orange-600 font-extrabold">{recordB.intenseFrequency}</span>
+              {recordB.primaryCity || '台北市'} / 海外 {recordB.overseasRegion || '無'}
             </div>
           </div>
 
+          {/* 馬拉松與跨縣市 */}
           <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-            <span className="text-[10px] text-slate-400 block">有軌跡運動佔比</span>
+            <span className="text-[10px] text-slate-400 block">馬拉松賽事 / 跨縣市</span>
             <div className="font-bold text-slate-800 mt-0.5">
-              {diffs.gpsRateA.toFixed(0)}% <span className="text-slate-400">➔</span>{' '}
-              <span className="text-sky-600 font-extrabold">{diffs.gpsRateB.toFixed(0)}%</span>
+              馬拉松: <span className="text-amber-600">{recordB.marathonEvent || 'N'}</span> / 跨縣市: {recordB.crossCity || 'N'}
             </div>
           </div>
 
+          {/* 穿戴裝置與 OS */}
           <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-            <span className="text-[10px] text-slate-400 block">路跑與戶外賽事</span>
+            <span className="text-[10px] text-slate-400 block">OS TYPE 與穿戴裝置</span>
             <div className="font-bold text-slate-800 mt-0.5">
-              {recordA.marathonEventsCount + recordA.outdoorEventsCount} 場 <span className="text-slate-400">➔</span>{' '}
-              <span className="text-purple-600 font-extrabold">
-                {recordB.marathonEventsCount + recordB.outdoorEventsCount} 場
-              </span>
+              {recordB.osType || 'iOS'} / {recordB.wearableDevice || 'garmin'}
+            </div>
+          </div>
+        </div>
+
+        {/* Multimedia & Sports App Pills */}
+        <div className="pt-2 border-t border-slate-100 space-y-2 text-xs">
+          <div>
+            <span className="text-[11px] font-bold text-slate-600 block mb-1">
+              Used Multimedia App：
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {(recordB.multimediaApps || []).map((app) => (
+                <span
+                  key={app}
+                  className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-[10px] font-bold"
+                >
+                  {app}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <span className="text-[11px] font-bold text-slate-600 block mb-1">
+              Used Sports APP：
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {(recordB.sportsApps || []).map((app) => (
+                <span
+                  key={app}
+                  className="px-2 py-0.5 bg-lime-50 text-lime-800 border border-lime-200 rounded-lg text-[10px] font-bold"
+                >
+                  {app}
+                </span>
+              ))}
             </div>
           </div>
         </div>
@@ -524,16 +467,16 @@ export const AdviceComparePage: React.FC<AdviceComparePageProps> = ({
         <div className="flex items-center justify-between px-1">
           <h2 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
             <HeartPulse className="w-4 h-4 text-rose-500" />
-            化繁為簡 • 專屬運動處方與健康建議
+            智慧運動處方與健康建議 (Decision Rules)
           </h2>
-          <span className="text-[10px] text-slate-400 font-bold">個人化演算</span>
+          <span className="text-[10px] text-slate-400 font-bold">即時規則運算</span>
         </div>
 
-        {prescriptions.map((p, idx) => {
+        {prescriptions.map((p) => {
           const Icon = p.icon;
           return (
             <div
-              key={idx}
+              key={p.id}
               className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-2 hover:border-lime-400 transition"
             >
               <div className="flex items-center justify-between">
@@ -541,7 +484,12 @@ export const AdviceComparePage: React.FC<AdviceComparePageProps> = ({
                   <div className="p-2 rounded-xl bg-lime-50 text-[#5ea31b] border border-lime-200">
                     <Icon className="w-4 h-4" />
                   </div>
-                  <h4 className="text-xs font-black text-slate-900">{p.title}</h4>
+                  <div>
+                    <h4 className="text-xs font-black text-slate-900">{p.title}</h4>
+                    <span className="text-[9px] text-slate-400 font-mono block">
+                      {p.ruleTrigger}
+                    </span>
+                  </div>
                 </div>
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
                   {p.tag}
@@ -553,8 +501,25 @@ export const AdviceComparePage: React.FC<AdviceComparePageProps> = ({
         })}
       </div>
 
+      {/* Decision Rules Location Note Card */}
+      <div className="p-3.5 bg-slate-900 text-slate-200 rounded-2xl border border-slate-800 text-xs space-y-1.5">
+        <div className="flex items-center gap-1.5 text-lime-400 font-bold text-xs">
+          <Code2 className="w-4 h-4" />
+          <span>處方決策規則 (Decision Rules) 存放位置說明</span>
+        </div>
+        <p className="text-[11px] text-slate-300 leading-relaxed">
+          上述所有運動處方的<strong>決策門檻條件、文案範本與推薦邏輯</strong>皆獨立封裝於專屬模組：
+          <code className="text-lime-300 bg-slate-800 px-1.5 py-0.5 rounded ml-1 font-mono">
+            /src/utils/prescriptionRules.ts
+          </code>
+        </p>
+        <p className="text-[10px] text-slate-400">
+          您可以隨時在此檔案中自訂或擴充包含心肺、體態、運動傷害防護、生活節奏與賽事生態系的各項處方生成規則！
+        </p>
+      </div>
+
       {/* Action Footer Bar */}
-      <div className="pt-2">
+      <div className="pt-1">
         <button
           onClick={onNavigateToFeatureInput}
           className="w-full py-3 px-4 bg-white hover:bg-slate-50 border-2 border-lime-600 text-lime-700 font-extrabold text-xs rounded-2xl shadow-sm flex items-center justify-center gap-2 transition cursor-pointer"

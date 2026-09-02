@@ -9,72 +9,85 @@ export interface UserRecord {
 }
 
 export interface SurveyRecord {
-  period: string; // '2025H2' | '2026H1' | string
-  periodName: string; // '2025下半年' | '2026上半年' | string
-  email?: string;
-  nickname?: string;
+  // 基本識別
+  nickname: string;
+  period: string; // '2025H2' | '2026H1' | '2026H2'
+  periodName: string; // '2025下半年' | '2026上半年' | '2026下半年'
+  userId?: string;
+  email: string;
   updatedAt?: string;
 
-  // 1. 性別: '男' | '女'
-  gender: string;
-  // 2. 年齡: '29以下' | '30-49' | '50 到69' | '70以上'
-  ageGroup: string;
-  // 3. 體重 (kg)
-  weight: number;
-  // 4. 身高 (cm)
-  height: number;
-  // 5. 總計運動記錄次數
-  totalRecordsCount: number;
-  // 6. 總計運動步數
-  totalSteps: number;
-  // 7. 無軌跡運動次數
-  noGpsCount: number;
-  // 8. 有軌跡運動次數
-  gpsCount: number;
-  // 9. 主要縣市運動次數
-  mainCityCount: number;
-  // 10. 其他縣市運動次數
-  otherCityCount: number;
-  // 11. 國外運動次數
-  abroadCount: number;
-  // 12. 跑步運動次數
-  runningCount: number;
-  // 13. 登山運動次數
-  hikingCount: number;
-  // 14. 步行運動次數
-  walkingCount: number;
-  // 15. 自行車運動次數
-  cyclingCount: number;
-  // 16. 總計運動距離 (km)
-  totalDistance: number;
-  // 17. 總計運動卡路里 (kcal)
-  totalCalories: number;
-  // 18. 總計運動時間 (分鐘)
-  totalMinutes: number;
-  // 19. 運動頻率: '每天運動' | '每周3-5次' | '每周1-2次' | '更少'
-  frequency: string;
-  // 20. 較強的運動頻率: '每天運動' | '每周3-5次' | '每周1-2次' | '更少'
-  intenseFrequency: string;
-  // 21. 較強的運動距離: '每次1 ~3公里' | '每次3-5公里' | '每次5-10公里' | '每次10-20公里' | '每次20公里以上'
-  intenseDistance: string;
-  // 22. 較強的運動強度: '時速3公里以下' | '時速3-5公里' | '時速5-10公里' | '時速10公里以上'
-  intenseSpeed: string;
-  // 23. 國內住宿旅遊次數 (半年內)
-  domesticTrips: number;
-  // 24. 國內旅遊會運動記錄軌跡嗎: '每次都會' | '偶爾會' | '不會'
-  domesticTrackGps: string;
-  // 25. 國外住宿旅遊次數 (半年內)
-  abroadTrips: number;
-  // 26. 國外旅遊會運動記錄軌跡嗎: '每次都會' | '偶爾會' | '不會'
-  abroadTrackGps: string;
-  // 27. 網路購買運動商品次數
-  onlineShoppingCount: number;
-  // 28. 報名參加路跑賽事次數
-  marathonEventsCount: number;
-  // 29. 報名參加登山健行單車活動次數
-  outdoorEventsCount: number;
-  // 30. 使用那些運動App (多選)
-  usedApps: string[];
+  // 裝置與個人基本特徵
+  osType: string; // 'iOS' | 'Android' | '其他'
+  wearableDevice: string; // 'garmin' | 'apple watch' | 'others' | '無'
+  gender: string; // '男' | '女'
+  ageGroup: string; // '29以下' | '30-49' | '50 到69' | '70以上'
+  height: number; // 身高 (cm)
+  weight: number; // 體重 (kg)
+
+  // 運動種類與次數
+  sportsTypeCount: string; // '單一' | '2種' | '3種以上'
+  totalRecordsCount: number; // 運動紀錄總次數
+  walkingCount: number; // 健走次數
+  runningCount: number; // 跑步次數
+  cyclingCount: number; // 單車次數
+  dailyStepsCount: number; // 每日步數次數
+  dailyStepsCalories: number; // 每日步數大卡
+
+  // 累積運動距離長度
+  walkingKm: number; // 健走(km)
+  runningKm: number; // 跑步(km)
+  cyclingKm: number; // 騎行(km)
+  indoorMinutes: number; // 室內運動(分鐘)
+  otherMinutes: number; // 其它運動(分鐘)
+
+  // 運動時段
+  weekdayCount: number; // 平日(次數)
+  weekendCount: number; // 假日+週末 (次數)
+
+  // 運動地點
+  primaryCity: string; // 經常運動縣巿1st
+  crossCity: string; // 跨縣市運動: 'Y' | 'N'
+  overseasRegion: string; // 海外運動: '日本' | '東南亞' | '歐美' | '港澳/大陸' | '無'
+
+  // 馬拉松賽事活動
+  marathonEvent: string; // 馬拉松賽事: 'Y' | 'N'
+
+  // 生態系與 App 使用行為
+  roamingAbroad: string; // 出國漫遊: 'Y' | 'N'
+  travelWebsite: string; // 旅遊網站: 'Y' | 'N'
+  weatherWebsite: string; // 氣象網站: 'Y' | 'N'
+  momoShopping: string; // MOMO網站: 'Y' | 'N'
+
+  // Used Multimedia App
+  multimediaApps: string[]; // ['MyVideo', 'Netflix/Disney+/HBO', 'KKBox', 'Spotify']
+
+  // Used Sports APP
+  sportsApps: string[]; // ['NikeRunC', 'Mi運動', '運動筆記', 'Strava APP', 'Garmin Connect', 'mySports', 'Apple 健身/健康']
+
+  // 兼容與統計運算輔助欄位
+  totalDistance?: number;
+  totalCalories?: number;
+  totalMinutes?: number;
+  totalSteps?: number;
+  hikingCount?: number;
+  usedApps?: string[];
+  noGpsCount?: number;
+  gpsCount?: number;
+  mainCityCount?: number;
+  otherCityCount?: number;
+  abroadCount?: number;
+  frequency?: string;
+  intenseFrequency?: string;
+  intenseDistance?: string;
+  intenseSpeed?: string;
+  domesticTrips?: number;
+  domesticTrackGps?: string;
+  abroadTrips?: number;
+  abroadTrackGps?: string;
+  onlineShoppingCount?: number;
+  marathonEventsCount?: number;
+  outdoorEventsCount?: number;
 }
 
 export type ChallengeType = 'distance' | 'minutes' | 'calories' | 'weight';
